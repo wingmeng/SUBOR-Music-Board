@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background: #565656;
+    }
+
+    .pen {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+
+      &::before {
+        content: '';
+        display: block;
+        width: 20px;
+        aspect-ratio: 42 / 80;
+        transform: rotate(120deg);
+        background: url(./pen.png) no-repeat;
+        background-size: contain;
+      }
+    }
+
+    .pen-write {animation: write 0.4s;}
+
+    @keyframes write {
+      10% {transform: translate(1px, -2px);}
+      35% {transform: translate(3px, 1px);}
+      65% {transform: translate(2px, 3px);}
+      80% {transform: translate(1px, 3px);}
+      85% {transform: translate(-1px, 2px);}
+    }
+
+    .pen-dip-ink {
+      animation: dipInk 0.6s;
+
+      &::before {transform: rotate(0);}
+    }
+
+    @keyframes dipInk {
+      20%, 80% {transform: translateY(3px);}
+      50% {transform: translateY(0);}
+    }
+  </style>
+</head>
+<body>
+  <span class="pen"></span>
+
+  <div style="margin: 60px;">
+    <button onclick="aniWrite()">书写</button>
+    <button onclick="aniDipInk()">蘸墨</button>
+  </div>
+
+  <script>
+    const pen = document.querySelector('.pen');
+
+    function aniWrite() {
+      pen.classList.remove('pen-write', 'pen-dip-ink');
+      requestAnimationFrame(() => {
+        pen.classList.add('pen-write');
+      });
+    }
+
+    function aniDipInk() {
+      pen.classList.remove('pen-write', 'pen-dip-ink');
+      requestAnimationFrame(() => {
+        pen.classList.add('pen-dip-ink');
+      });
+    }
+  </script>
+</body>
+</html>

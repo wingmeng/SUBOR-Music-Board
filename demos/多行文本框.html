@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 5px;
+      padding: 0;
+      margin: 0;
+      font-size: 14px;
+      list-style: none;
+    }
+
+    .list input {
+      display: block;
+      width: 2.6em;
+      height: 2.6em;
+      box-sizing: border-box;
+      text-align: center;
+      caret-color: transparent;
+      border: 1px solid #eee;
+
+      &:focus {
+        outline: 2px auto #333;
+      }
+    }
+
+    .list input:first-child {
+      border-radius: 4px 4px 0 0;
+    }
+
+    .list input:last-child {
+      border-radius: 0 0 4px 4px;
+    }
+
+    .writing {animation: writing 0.3s;}
+
+    @keyframes writing {
+      50% {
+        transform: translateY(-2px);
+        opacity: 0.5;
+      }
+    }
+
+    .shake {animation: shake 0.8s ease-in-out;}
+
+    @keyframes shake {
+      10%, 90% {transform: translate3d(-1px, 0, 0);}
+      20%, 80% {transform: translate3d(2px, 0, 0);}
+      30%, 70% {transform: translate3d(-4px, 0, 0);}
+      40%, 60% {transform: translate3d(4px, 0, 0);}
+      50% {transform: translate3d(-4px, 0, 0);}
+    }
+  </style>
+</head>
+<body>
+  <ul class="list">
+    <li data-index="0">
+      <input type="text" data-index="0" maxlength="1">
+      <input type="text" data-index="1" maxlength="1">
+      <input type="text" data-index="2" maxlength="1">
+    </li>
+    <li data-index="1">
+      <input type="text" data-index="0" maxlength="1">
+      <input type="text" data-index="1" maxlength="1">
+      <input type="text" data-index="2" maxlength="1">
+    </li>
+  </ul>
+
+  <script>
+    const list = document.querySelector('.list');
+
+    list.innerHTML = Array.from({ length: 100 }, (_, i) => `
+      <li data-index="${i}">
+        <input type="text" data-index="0" maxlength="1">
+        <input type="text" data-index="1" maxlength="1">
+        <input type="text" data-index="2" maxlength="1">
+      </li>
+    `).join('');
+
+    const listItems = list.querySelectorAll('li');
+    let writing = false;
+
+    list.addEventListener('keydown', ({ key, target }) => {
+      if (target.tagName !== 'INPUT') {
+        return;
+      }
+
+      let rowIndex = Number(target.dataset.index);
+      let colIndex = Number(target.parentNode.dataset.index);
+      let isCharacterKey = false;
+
+      switch (key) {
+        case 'ArrowUp':
+          rowIndex -= Number(rowIndex > 0);
+          break;
+        case 'ArrowDown':
+          rowIndex += Number(rowIndex < 2);
+          break;
+        case 'ArrowLeft':
+          colIndex -= Number(colIndex > 0);
+          break;
+        case 'ArrowRight':
+          colIndex += Number(colIndex < listItems.length - 1);
+          break;
+        case 'Backspace':
+          colIndex -= Number(colIndex > 0);
+          break;
+        default:  // 其他字符（含删除键）
+          isCharacterKey = true;
+          target.select();  // 先选中字符，用以覆盖式更新
+      }
+
+      if (!isCharacterKey) {
+        listItems[colIndex].querySelectorAll('input')[rowIndex].focus();
+      }
+    });
+
+    list.addEventListener('input', (e) => {
+      if (['deleteContentForward', 'deleteContentBackward'].includes(e.inputType)) {
+        return;
+      }
+
+      if (writing) {
+        return;
+      }
+
+      const { target } = e;
+
+      if (!(/[a-g1-7\s]/i.test(target.value))) {  // 不能输入其他字符
+        target.value = '';
+        target.classList.remove('shake');
+        requestAnimationFrame(() => target.classList.add('shake'));
+        return;
+      }
+
+      writing = true;
+      target.classList.add('writing');
+
+      let inputIndex = Number(target.dataset.index);
+      let liIndex = Number(target.parentNode.dataset.index);
+
+      if (liIndex === listItems.length - 1 && inputIndex === 2) {  // 最后一个输入框
+        return;
+      }
+
+      if (liIndex === listItems.length - 1) {  // 最后一行
+        liIndex = 0;
+        inputIndex++;
+      } else {
+        liIndex++;
+      }
+
+      const nextInput = listItems[liIndex].querySelectorAll('input')[inputIndex];
+
+      target.onanimationend = () => {
+        writing = false;
+        target.classList.remove('writing');
+        nextInput.focus();
+      };
+    });
+  </script>
+</body>
+</html>

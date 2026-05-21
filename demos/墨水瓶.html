@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .ink {
+      position: relative;
+      width: fit-content;
+      padding: 3px 2px 2px;
+      text-align: right;
+      font-family: Arial;
+      color: #3cc;
+      background: linear-gradient(to bottom, tranparent 57%, currentColor 0);
+
+      &::before {
+        content: '';
+        display: block;
+        width: 18px;
+        border: 6px solid transparent;
+        border-bottom-color: currentColor;
+        box-shadow: 0 6px;
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 3px 10px auto;
+        height: 1px;
+        border-style: solid;
+        border-width: 2px 0;
+      }
+    }
+
+    .ink > b {
+      display: inline-block;
+      padding: 0 2px;
+      line-height: 1.15;
+      font-size: 14px;
+      column-rule: #339;
+      background: #fff;
+      box-shadow: 0 1px 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ink"><b>INK</b></div>
+</body>
+</html>

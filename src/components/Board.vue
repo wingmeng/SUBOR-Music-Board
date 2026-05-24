@@ -6,26 +6,27 @@
     <h2 class="board-title">MUSIC BOARD</h2>
     <div class="board-main">
       <slot></slot>
-      0123456789 CDEFGAB cdefgab
     </div>
   </div>
 </template>
 
 <style scoped>
 .board {
+  --width-outer-border: 50px;
+
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 2 * 56px);
+  height: calc(100vh - 2 * var(--width-outer-border));
   width: 32em;
-  margin: 56px auto;
+  margin: var(--width-outer-border) auto;
   box-sizing: border-box;
   font-size: 20px;
   color: #fff;
   border: 17px solid;
   border-image: url(../assets/border.svg) 17;
   box-shadow: 0 0 0 2px #fff inset,
-        0 0 0 2px #fff,
-        0 0 0 56px #c33;
+              0 0 0 2px #fff,
+              0 0 0 var(--width-outer-border) #c33;
 }
 
 .board-title {
@@ -41,7 +42,6 @@
 .board-main {
   flex: 1;
   min-height: 0;
-  word-break: break-all;
   scrollbar-gutter: stable both-edges;
   overflow: auto;
 }

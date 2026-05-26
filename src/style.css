@@ -10,3 +10,18 @@ ul, ol {
   margin: 0;
   list-style: none;
 }
+
+label {
+  margin: 0;
+  user-select: none;
+}
+
+.nes-btn {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 14px;
+}
+
+.nes-btn.is-symbol {
+  padding: 2px 3px;
+}

@@ -11,7 +11,6 @@
   "dependencies": {
     "@fontsource/press-start-2p": "^5.2.7",
     "nes.css": "^2.3.0",
-    "tone": "^15.1.22",
     "vue": "^3.5.34"
   },
   "devDependencies": {

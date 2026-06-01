@@ -1,54 +1,64 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { QuillAnimation } from '../composables/useQuill'
 
 const props = defineProps<{
   x: number
   y: number
   animation: QuillAnimation
+  docked?: boolean
 }>()
 
 const emit = defineEmits<{
   animationEnd: []
 }>()
+
+/** 非 docked 模式下使用动态坐标 */
+const dynamicStyle = computed(() => {
+  if (props.docked) return {}
+  return { left: `${props.x}px`, top: `${props.y}px` }
+})
 </script>
 
 <template>
   <span
     class="quill"
     :class="{
-      writing: props.animation === 'writing',
-      'dip-ink': props.animation === 'dipInk',
+      writing: props.animation === 'writing' && !props.docked,
+      'dip-ink': props.animation === 'dipInk' && !props.docked,
+      docked: props.docked,
     }"
-    :style="{ left: props.x + 'px', top: props.y + 'px' }"
-    @animationend="emit('animationEnd')"
+    :style="dynamicStyle"
+    @animationend.stop="!props.docked && emit('animationEnd')"
   ></span>
 </template>
 
 <style scoped>
 .quill {
-  position: fixed;
+  position: absolute;
   width: 26px;
   aspect-ratio: 42 / 80;
   transform: rotate(120deg);
   background: url(../assets/pen.png) no-repeat;
   background-size: contain;
   pointer-events: none;
-  z-index: 10;
-  transition: left 0.2s ease-in-out, top 0.2s ease-in-out;
-  will-change: left, top;
+  filter: drop-shadow(2px 0 4px #000);
+  transition: left 0.2s ease-in-out, top 0.2s ease-in-out, transform 0.4s ease-in-out;
+  will-change: left, top, transform;
 }
 
 /* 书写动画：笔尖微微晃动 */
 .quill.writing {
-  animation: write 0.5s linear;
+  animation: write 0.2s;
+  animation-composition: add;
 }
 
 @keyframes write {
-  15% { transform: rotate(120deg) translate(1px, 8px); }
-  30% { transform: rotate(120deg) translate(2px, 10px); }
-  45% { transform: rotate(120deg) translate(3px, 6px); }
-  60% { transform: rotate(120deg) translate(3px, 3px); }
-  80% { transform: rotate(120deg) translate(2px, 6px); }
+  10% {transform: translate(1px, -3px);}
+  35% {transform: translate(4px, 1px);}
+  65% {transform: translate(2px, 3px);}
+  80% {transform: translate(1px, 4px);}
+  85% {transform: translate(1px, 6px);}
 }
 
 /* 蘸墨动画：笔身转正，上下蘸取 */
@@ -60,5 +70,17 @@ const emit = defineEmits<{
 @keyframes dipInk {
   20%, 80% { transform: rotate(0deg) translateY(3px); }
   50% { transform: rotate(0deg) translateY(0); }
+}
+
+/* Docked 状态：羽毛笔蘸入墨水瓶（参考 demos/笔动画.html dipInk） */
+.quill.docked {
+  right: -2px;
+  bottom: 30px;
+  left: auto;
+  top: auto;
+  transform: rotate(0deg);
+  animation: dipInk 0.6s;
+  animation-fill-mode: forwards;
+  transition: none;
 }
 </style>

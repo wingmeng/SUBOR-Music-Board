@@ -96,7 +96,14 @@ export class MusicEngine {
     if (midiNote === null || !this.audioContext || !this.compressor) return
 
     const ctx = this.audioContext
-    const freq = 27.5 * Math.pow(2, (midiNote - 21) / 12) // MIDI → Hz
+
+    // 八度缩放因子（匹配 jinglebell 的 octave 参数）
+    //   voice 0 (主旋律/方波): ×2  → 高八度
+    //   voice 1 (和弦律/方波): ×1  → 原始音高
+    //   voice 2 (低频/三角波): ×0.5 → 低八度
+    // 三声部分布在高、中、低三个音域，形成层次分明的三声部效果
+    const OCTAVE_MULTIPLIERS = [2, 1, 0.5]
+    const freq = 27.5 * Math.pow(2, (midiNote - 21) / 12) * OCTAVE_MULTIPLIERS[voiceIndex]
     const stopTime = startTime + duration
     const isTriangle = voiceIndex === 2
 
@@ -108,8 +115,22 @@ export class MusicEngine {
     osc.frequency.setValueAtTime(freq, startTime)
 
     if (isTriangle) {
-      // 三角波：直接连接压缩器（波形柔和，无需 gain 包络）
-      osc.connect(this.compressor)
+      // 三角波：增益补偿 + 微量 gain 包络消除起止 Click
+      //
+      // 增益补偿原因：
+      //   1. 八度因子 ×0.5 使频率降一个八度（如 C4→C3），普通喇叭低音重现效率低
+      //   2. 人耳等响曲线在低频段灵敏度显著下降（Fletcher-Munson 效应）
+      //   3. 方波主旋律全程线性衰减（平均增益≈0.5），三角波需要提升音量保持平衡
+      // 提升 2.5 倍（≈+8dB）以补偿上述因素，使低频声部可清晰听见
+      const gainNode = ctx.createGain()
+      const TRIANGLE_BOOST = 2.5
+      const fadeMs = 0.003 // 3ms 淡出消除 Click
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(TRIANGLE_BOOST, startTime + 0.001) // 1ms attack
+      gainNode.gain.setValueAtTime(TRIANGLE_BOOST, stopTime - fadeMs)
+      gainNode.gain.linearRampToValueAtTime(0.0, stopTime)
+      osc.connect(gainNode)
+      gainNode.connect(this.compressor)
     } else {
       // 方波：精确匹配 jinglebell 的增益调度
       const gainNode = ctx.createGain()

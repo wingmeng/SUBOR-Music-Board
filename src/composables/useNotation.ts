@@ -30,6 +30,38 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     }
   }
 
+  /**
+   * 插入模式：在 col 处插入音符，col 及之后同声部音符右移一位，末位丢弃
+   */
+  function insertNoteAt(col: number, voice: VoiceIndex, char: string) {
+    if (col < 0 || col >= score.length) return
+    for (let i = score.length - 1; i > col; i--) {
+      score[i][voice] = score[i - 1][voice]
+    }
+    score[col][voice] = char
+  }
+
+  /**
+   * 插入模式 Backspace：删除 col 前一个位置的音符，之后同声部音符左移填补，末位补空格
+   * 返回是否成功执行（col=0 时无法操作）
+   */
+  function backspaceAt(col: number, voice: VoiceIndex): boolean {
+    if (col <= 0 || col >= score.length + 1) return false
+    const deleteCol = col - 1
+    for (let i = deleteCol; i < score.length - 1; i++) {
+      score[i][voice] = score[i + 1][voice]
+    }
+    score[score.length - 1][voice] = ' '
+    return true
+  }
+
+  /**
+   * 清空当前 cell，不触发位移（用于 Delete 键，两种模式通用）
+   */
+  function deleteAt(col: number, voice: VoiceIndex) {
+    clearNote(col, voice)
+  }
+
   /** 移动光标 */
   function moveCursor(col: number, voice: VoiceIndex) {
     if (col >= 0 && col < score.length) {
@@ -74,6 +106,9 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     columns: score.length,
     setNote,
     clearNote,
+    insertNoteAt,
+    backspaceAt,
+    deleteAt,
     moveCursor,
     resetScore,
     loadScore,

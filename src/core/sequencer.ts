@@ -170,7 +170,9 @@ export class Sequencer {
    * 暂停播放
    */
   pause(): void {
-    if (this.state !== 'playing') return
+    if (this.state !== 'playing') {
+      return
+    }
     this.state = 'paused'
 
     // 停止 UI 定时器
@@ -215,13 +217,14 @@ export class Sequencer {
   /**
    * 获取乐谱有效长度：最后一个至少有一个非空格音符的列的索引 + 1
    *
-   * 乐谱固定有 DEFAULT_COLUMNS(138) 列，但大部分可能是空白列。
+   * 乐谱固定有 DEFAULT_COLUMNS(150) 列，但大部分可能是空白列。
    * 有效长度确定播放器的实际播放终点，避免在空白列中浪费时间。
    */
   private getEffectiveLength(): number {
     for (let i = this.score.length - 1; i >= 0; i--) {
       const col = this.score[i]
-      if (col[0] !== ' ' || col[1] !== ' ' || col[2] !== ' ') {
+
+      if ([0, 1, 2].some(index => col[index] !== ' ')) {
         return i + 1
       }
     }
@@ -317,10 +320,12 @@ export class Sequencer {
   }
 
   /**
-   * 获取四分音符间隔（秒）
+   * 获取每列的时间间隔（秒）
+   *
+   * 每列 = 八分音符（半拍），故间隔 = 60 / (BPM × 2) = 30 / BPM
    */
   private getNoteInterval(): number {
-    return 60 / this.bpm
+    return 30 / this.bpm
   }
 
   /**

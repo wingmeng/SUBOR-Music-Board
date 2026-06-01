@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{
   visible: boolean
@@ -12,6 +12,7 @@ const emit = defineEmits<{
 
 const title = ref('')
 const description = ref('')
+const titleValid = computed(() => title.value.trim().length > 0)
 
 function handleConfirm() {
   const trimmedTitle = title.value.trim()
@@ -77,7 +78,8 @@ function resetForm() {
         <button
           type="submit"
           class="nes-btn is-primary"
-          :disabled="!title.trim()"
+          :class="{'is-disabled': !titleValid}"
+          :disabled="!titleValid"
         >
           导出
         </button>

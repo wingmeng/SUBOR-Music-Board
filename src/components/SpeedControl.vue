@@ -8,6 +8,8 @@ const currentIndex = computed(() => {
   const idx = BPM_LIST.indexOf(modelValue.value as any)
   return idx === -1 ? BPM_LIST.indexOf(DEFAULT_BPM as any) : idx
 })
+const isBeginning = computed(() => currentIndex.value === 0)
+const isEnd = computed(() => currentIndex.value === BPM_LIST.length - 1)
 
 function changeSpeed(increment: number) {
   const nextIndex = currentIndex.value + increment
@@ -23,7 +25,8 @@ function changeSpeed(increment: number) {
     <li>
       <button 
         class="nes-btn is-symbol"
-        :disabled="currentIndex === 0"
+        :class="{'is-disabled': isBeginning}"
+        :disabled="isBeginning"
         @click="changeSpeed(-1)">&lt;SLOW</button>
     </li>
     <li
@@ -35,7 +38,8 @@ function changeSpeed(increment: number) {
     <li>
       <button 
         class="nes-btn is-symbol"
-        :disabled="currentIndex === BPM_LIST.length - 1"
+        :class="{'is-disabled': isEnd}"
+        :disabled="isEnd"
         @click="changeSpeed(1)">FAST&gt;</button>
     </li>
   </ul>

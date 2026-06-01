@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { KEY_SIGNATURES, DEFAULT_KEY_SIGNATURE } from '../core/types'
 import type { KeySignature } from '../core/types'
 
 const modelValue = defineModel<KeySignature>({ default: DEFAULT_KEY_SIGNATURE })
+const isBeginning = computed(() => KEY_SIGNATURES.indexOf(modelValue.value) === 0)
+const isEnd = computed(() => KEY_SIGNATURES.indexOf(modelValue.value) === KEY_SIGNATURES.length - 1)
 
 function prevKey() {
   const idx = KEY_SIGNATURES.indexOf(modelValue.value)
@@ -23,13 +26,15 @@ function nextKey() {
   <div class="key-signature">
     <button
       class="nes-btn is-symbol"
-      :disabled="KEY_SIGNATURES.indexOf(modelValue) === 0"
+      :class="{'is-disabled': isBeginning}"
+      :disabled="isBeginning"
       @click="prevKey"
     >&lt;</button>
     <span class="key-display">1={{ modelValue }}</span>
     <button
       class="nes-btn is-symbol"
-      :disabled="KEY_SIGNATURES.indexOf(modelValue) === KEY_SIGNATURES.length - 1"
+      :class="{'is-disabled': isEnd}"
+      :disabled="isEnd"
       @click="nextKey"
     >&gt;</button>
   </div>

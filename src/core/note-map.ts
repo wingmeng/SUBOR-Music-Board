@@ -29,7 +29,7 @@ const KEY_NOTE_MAP: Record<KeySignature, number[]> = {
 /**
  * 解析记谱字符串，提取音符编号和修饰符
  *
- * @param note 记谱字符串 (如 "1", "#1.", "b3,," )
+ * @param note 记谱字符串 (如 "1", "#1.", "b3," )
  * @returns 解析结果，或 null 表示无效/休止符
  */
 function parseNote(note: string): {
@@ -43,7 +43,7 @@ function parseNote(note: string): {
   }
 
   // 匹配格式: [升降号?][1-7][八度后缀?]
-  const match = note.match(/^(#|b)?([1-7])(\.{1,2}|,{1,2})?$/)
+  const match = note.match(/^(#|b)?([1-7])(\.|,)?$/)
   if (!match) {
     return null
   }
@@ -58,18 +58,12 @@ function parseNote(note: string): {
     accidental = -1
   }
 
-  // 解析八度后缀
+  // 解析八度后缀（仅支持1级）
   let octaveShift = 0
-  if (octaveSuffix) {
-    if (octaveSuffix === '.') {
-      octaveShift = 1
-    } else if (octaveSuffix === '..') {
-      octaveShift = 2
-    } else if (octaveSuffix === ',') {
-      octaveShift = -1
-    } else if (octaveSuffix === ',,') {
-      octaveShift = -2
-    }
+  if (octaveSuffix === '.') {
+    octaveShift = 1
+  } else if (octaveSuffix === ',') {
+    octaveShift = -1
   }
 
   return {
@@ -82,7 +76,7 @@ function parseNote(note: string): {
 /**
  * 将简谱记谱字符串转换为 MIDI 音符编号
  *
- * @param note 记谱字符串 (如 "1", "#1.", "b3,," )
+ * @param note 记谱字符串 (如 "1", "#1.", "b3," )
  * @param keySignature 当前调号
  * @returns MIDI 音符编号，或 null 表示休止符
  */

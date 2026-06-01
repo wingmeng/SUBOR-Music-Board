@@ -4,8 +4,13 @@
 <template>
   <div class="board">
     <h2 class="board-title">MUSIC BOARD</h2>
-    <div class="board-main">
-      <slot></slot>
+    <div class="board-body">
+      <div class="board-main">
+        <slot name="grid"></slot>
+      </div>
+      <div class="board-overlay">
+        <slot name="overlay"></slot>
+      </div>
     </div>
   </div>
 </template>
@@ -17,10 +22,10 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 2 * var(--width-outer-border));
-  width: 32em;
+  width: 36em;
   margin: var(--width-outer-border) auto;
   box-sizing: border-box;
-  font-size: 20px;
+  font-size: 17px;
   color: #fff;
   border: 17px solid;
   border-image: url(../assets/border.svg) 17;
@@ -39,10 +44,24 @@
   corner-shape: bevel;
 }
 
-.board-main {
+.board-body {
   flex: 1;
   min-height: 0;
-  scrollbar-gutter: stable both-edges;
+  position: relative;
+}
+
+.board-main {
+  position: absolute;
+  inset: 0;
   overflow: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+.board-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 5;
 }
 </style>

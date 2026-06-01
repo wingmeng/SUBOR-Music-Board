@@ -1,8 +1,8 @@
 /** 基本音符字符 */
 export type NoteChar = string
 
-/** 八度后缀：.表示高音（上加点），,表示低音（下加点），可重复表示倍音 */
-export type OctaveSuffix = '' | '.' | '..' | ',' | ',,'
+/** 八度后缀：.表示高音（上加点），,表示低音（下加点），仅支持1级 */
+export type OctaveSuffix = '' | '.' | ','
 /** 解析后的显示信息 */
 export interface NoteDisplay {
   /** input中显示的内容（如 "1", "#1"） */
@@ -26,16 +26,10 @@ export function parseNoteValue(value: string): NoteDisplay {
   let display = value
   let octaveClass = ''
 
-  // 从末尾解析八度后缀（优先匹配较长的 `..` 和 `,,`）
-  if (display.endsWith('..')) {
-    octaveClass = 's2'
-    display = display.slice(0, -2)
-  } else if (display.endsWith('.')) {
+  // 从末尾解析八度后缀（仅支持1级）
+  if (display.endsWith('.')) {
     octaveClass = 's1'
     display = display.slice(0, -1)
-  } else if (display.endsWith(',,')) {
-    octaveClass = 's-2'
-    display = display.slice(0, -2)
   } else if (display.endsWith(',')) {
     octaveClass = 's-1'
     display = display.slice(0, -1)
@@ -71,6 +65,9 @@ export interface CursorPosition {
   voice: VoiceIndex
 }
 
+/** 输入模式：insert（插入，输入时右推后续音符）/ overwrite（覆盖，直接替换） */
+export type InputMode = 'insert' | 'overwrite'
+
 /** 播放状态 */
 export type PlaybackState = 'stopped' | 'playing' | 'paused'
 
@@ -95,28 +92,28 @@ export function isValidNoteChar(char: string): boolean {
  */
 export function isValidNoteValue(value: string): boolean {
   if (value === ' ' || value === '') return true
-  return /^(#[1-7]|b[1-7]|[1-7])(\.{1,2}|,{1,2})?$/.test(value)
+  return /^(#[1-7]|b[1-7]|[1-7])(\.|,)?$/.test(value)
 }
 
 /** 默认列数 */
-export const DEFAULT_COLUMNS = 138
+export const DEFAULT_COLUMNS = 150
 
 /**
  * 速度档位（BPM）
  *
  * | 档位 | BPM | 说明     |
  * |------|-----|----------|
- * | 0    | 100 | 最慢     |
- * | 1    | 120 |          |
- * | 2    | 135 |          |
- * | 3    | 150 |          |
- * | 4    | 175 |          |
- * | 5    | 200 | 最快     |
+ * | 0    |  90 | 最慢     |
+ * | 1    | 100 |          |
+ * | 2    | 120 |          |
+ * | 3    | 130 |          |
+ * | 4    | 140 |          |
+ * | 5    | 160 | 最快     |
  */
-export const BPM_LIST = [100, 120, 135, 140, 150, 175, 200] as const
+export const BPM_LIST = [90, 100, 120, 130, 140, 160] as const
 
 /** 默认 BPM */
-export const DEFAULT_BPM = 135
+export const DEFAULT_BPM = 120
 
 /**
  * 调号定义

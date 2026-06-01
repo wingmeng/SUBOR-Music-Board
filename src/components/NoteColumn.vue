@@ -8,10 +8,12 @@ const props = defineProps<{
   colIndex: number
   isCurrent: boolean
   isPlaying?: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
   noteInput: [voice: VoiceIndex, char: string]
+  noteBackspace: [voice: VoiceIndex]
   noteDelete: [voice: VoiceIndex]
   cellFocus: [voice: VoiceIndex, colIndex: number]
 }>()
@@ -34,7 +36,9 @@ defineExpose({ focusVoice })
       ref="cellRefs"
       :value="note"
       :voice="voice as VoiceIndex"
+      :disabled="disabled"
       @input="emit('noteInput', voice as VoiceIndex, $event)"
+      @backspace="emit('noteBackspace', voice as VoiceIndex)"
       @delete="emit('noteDelete', voice as VoiceIndex)"
       @focus="emit('cellFocus', voice as VoiceIndex, colIndex)"
     />

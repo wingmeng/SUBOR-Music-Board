@@ -7,10 +7,12 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const props = defineProps<{
   value: string
   voice: VoiceIndex
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
   input: [char: string]
+  backspace: []
   delete: []
   focus: []
 }>()
@@ -32,18 +34,16 @@ const octaveClass = computed(() => {
   return pendingToClass(pendingOctave.value) || noteDisplay.value.octaveClass
 })
 
-/** 将待决后缀转为CSS类名：.. → s2（倍高音），. → s1（高音），,, → s-2（倍低音），, → s-1（低音） */
+/** 将待决后缀转为CSS类名：. → s1（高音），, → s-1（低音） */
 function pendingToClass(suffix: string): string {
-  if (suffix.endsWith('..')) return 's2'
   if (suffix.endsWith('.'))  return 's1'
-  if (suffix.endsWith(',,')) return 's-2'
   if (suffix.endsWith(','))  return 's-1'
   return ''
 }
 
-/** 动态 maxlength：有 pending 修饰符时开放到 4 以容纳后续输入 */
+/** 动态 maxlength：有 pending 修饰符时开放到 3 以容纳后续输入 */
 const inputMaxlength = computed(() => {
-  return pendingAccidental.value || pendingOctave.value ? 4 : 1
+  return pendingAccidental.value || pendingOctave.value ? 3 : 1
 })
 
 /** input 显示的文本：聚焦时显示完整值（含升降号），未聚焦时只显示数字 */
@@ -68,6 +68,13 @@ const shaking = ref(false)
 
 function onInput(e: Event) {
   const target = e.target as HTMLInputElement
+
+  // 过滤浏览器编辑操作产生的非插入事件（如 select+替换时先触发的 deleteContentBackward）
+  // 参考 demos/ui.html 和 demos/多行文本框.html 中的同类处理
+  if (e instanceof InputEvent && ['deleteContentForward', 'deleteContentBackward', 'deleteByCut'].includes(e.inputType)) {
+    return
+  }
+
   const char = target.value
 
   if (!isValidNoteChar(char)) {
@@ -96,10 +103,10 @@ function onInput(e: Event) {
     return
   }
 
-  // 八度修饰符：. 高音，, 低音，最多 2 级，不能混用
+  // 八度修饰符：. 高音，, 低音，最多 1 级，不能混用
   if (char === '.' || char === ',') {
     // 已达上限或与现有方向冲突 → 忽略
-    if (pendingOctave.value.length >= 2) return
+    if (pendingOctave.value.length >= 1) return
     if (pendingOctave.value && pendingOctave.value[0] !== char) return
     pendingOctave.value += char
     target.value = ''
@@ -115,7 +122,7 @@ function onInput(e: Event) {
   emit('input', prefix + char + suffix)
 }
 
-function onDelete(_e: Event) {
+function onBackspace() {
   if (pendingOctave.value) {
     pendingOctave.value = pendingOctave.value.slice(0, -1)
     return
@@ -124,23 +131,42 @@ function onDelete(_e: Event) {
     pendingAccidental.value = ''
     return
   }
+  emit('backspace')
+}
+
+function onDeleteKey() {
+  pendingAccidental.value = ''
+  pendingOctave.value = ''
   emit('delete')
 }
 
 
 
 function onKeydown(e: KeyboardEvent) {
+  // 长按字符键时阻止 repeat 事件，防止大量重复输入涌入队列
+  if (e.repeat && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault()
+    return
+  }
+
   // 选中当前内容，使新输入覆盖旧值
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
     const target = e.target as HTMLInputElement
     target.select()
   }
 
-  // 退格键：直接在组件内处理，避免触发 onInput 的抖动
+  // 退格键：删除前一个 cell（或清除待决修饰符）
   if (e.key === 'Backspace') {
     e.preventDefault()
     e.stopPropagation()
-    onDelete(e)
+    onBackspace()
+  }
+
+  // Delete 键：清空当前 cell 内容，不触发位移
+  if (e.key === 'Delete') {
+    e.preventDefault()
+    e.stopPropagation()
+    onDeleteKey()
   }
 }
 
@@ -167,13 +193,14 @@ defineExpose({ focus })
 </script>
 
 <template>
-  <span class="tone" :class="octaveClass" @click="focus()">
+  <span class="tone" :class="[octaveClass, { disabled }]">
     <span v-if="accidentalChar" class="acc">{{ accidentalChar }}</span>
     <input
       ref="inputRef"
       type="text"
       :value="displayValue === '' ? '' : displayValue"
       :maxlength="inputMaxlength"
+      :readonly="disabled"
       autocomplete="off"
       :class="{ shake: shaking }"
       @input="onInput"
@@ -190,7 +217,7 @@ defineExpose({ focus })
   position: relative;
   display: inline-block;
   width: 1em;
-  line-height: 1.15;
+  line-height: 1.6;
 }
 
 /* 升降号标记：在 input 左侧显示 # 或 b */
@@ -210,29 +237,24 @@ defineExpose({ focus })
   position: absolute;
   left: 50%;
   width: 1em;
-  line-height: 0.4;
+  font-size: 0.4em;
   pointer-events: none;
   color: #fff;
 }
 
-.tone.s1::before,
-.tone.s2::before {
-  top: -0.15em;
+/* 高音标记：音符上方加点 */
+.tone.s1::before {
+  content: '▪';
+  top: 0;
   transform: translate(-50%, -100%);
 }
 
-.tone.s1::before { content: '▪'; }
-.tone.s2::before { content: '▪▪'; }
-
 /* 低音标记：音符下方加点 */
-.tone.s-1::after,
-.tone.s-2::after {
-  bottom: 0.2em;
+.tone.s-1::after {
+  content: '▪';
+  bottom: 0;
   transform: translate(-50%, 100%);
 }
-
-.tone.s-1::after { content: '▪'; }
-.tone.s-2::after { content: '▪▪'; }
 
 input {
   display: block;
@@ -254,6 +276,11 @@ input {
 
 input:focus {
   max-width: 2.6em;
+}
+
+/* 播放禁用状态 */
+.tone.disabled input {
+  cursor: not-allowed;
 }
 
 .shake {

@@ -5,9 +5,10 @@
   <div class="board">
     <h2 class="board-title">MUSIC BOARD</h2>
     <div class="board-body">
-      <div class="board-main">
+      <div class="board-scroll">
         <slot name="grid"></slot>
       </div>
+      <slot name="footer"></slot>
       <div class="board-overlay">
         <slot name="overlay"></slot>
       </div>
@@ -19,6 +20,7 @@
 .board {
   --width-outer-border: 50px;
 
+  position: relative;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 2 * var(--width-outer-border));
@@ -48,11 +50,13 @@
   flex: 1;
   min-height: 0;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
-.board-main {
-  position: absolute;
-  inset: 0;
+.board-scroll {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable both-edges;
 }
@@ -62,6 +66,6 @@
   inset: 0;
   overflow: visible;
   pointer-events: none;
-  z-index: 5;
+  z-index: 2;
 }
 </style>

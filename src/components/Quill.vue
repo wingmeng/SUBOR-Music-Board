@@ -74,7 +74,7 @@ const dynamicStyle = computed(() => {
 
 /* Docked 状态：羽毛笔蘸入墨水瓶（参考 demos/笔动画.html dipInk） */
 .quill.docked {
-  right: -2px;
+  right: 10px;
   bottom: 30px;
   left: auto;
   top: auto;

@@ -83,6 +83,7 @@ function getActiveInput(): HTMLElement | null {
 /** 更新羽毛笔位置到当前焦点元素 */
 function updateQuillPosition() {
   const el = getActiveInput()
+
   if (el && el.tagName === 'INPUT') {
     quill.moveTo(el)
   }
@@ -91,6 +92,7 @@ function updateQuillPosition() {
 /** 前进到下一格（向右，同声部） */
 function advanceToNext() {
   const nextCol = props.cursor.col + 1
+
   if (nextCol < props.score.length) {
     moveCursor(nextCol, props.cursor.voice)
     focusCell(nextCol, props.cursor.voice)
@@ -100,6 +102,7 @@ function advanceToNext() {
 /** 后退到上一格（向左，同声部） */
 function retreatToPrev() {
   const prevCol = props.cursor.col - 1
+
   if (prevCol >= 0) {
     moveCursor(prevCol, props.cursor.voice)
     focusCell(prevCol, props.cursor.voice)
@@ -111,7 +114,9 @@ async function playNote(voice: VoiceIndex, char: string) {
   if (!engine.isInitialized()) {
     await engine.init()
   }
+
   const midi = noteToMidi(char, props.keySignature)
+
   if (midi !== null) {
     engine.playNote(voice, midi, 0.2)
   }
@@ -119,11 +124,15 @@ async function playNote(voice: VoiceIndex, char: string) {
 
 /** 记谱输入 → 更新数据 + 播放声音 + 书写动画 + 前进（支持队列缓冲） */
 async function onNoteInput(voice: VoiceIndex, char: string) {
-  if (isPlaying.value) return
+  if (isPlaying.value) {
+    return
+  }
+
   if (writingAnimationActive) {
     inputQueue.push({ voice, char })
     return
   }
+
   await processInput(voice, char)
 }
 
@@ -177,6 +186,7 @@ function handleQuillAnimationEnd() {
   for (let i = 0; i < queued.length; i++) {
     const col = baseCol + 1 + i
     const { voice, char } = queued[i]
+
     if (props.inputMode === 'insert') {
       insertNoteAt(col, voice, char)
     } else {
@@ -190,6 +200,7 @@ function handleQuillAnimationEnd() {
   // 第三步：一次性推进光标（原始音符 1 格 + 队列 N 格）
   const steps = 1 + queued.length
   const finalCol = baseCol + steps
+
   if (finalCol < props.score.length) {
     moveCursor(finalCol, props.cursor.voice)
     focusCell(finalCol, props.cursor.voice)
@@ -204,7 +215,10 @@ defineExpose({ handleQuillAnimationEnd })
  * - 覆盖模式：清空前一个 cell，光标后退（不移位）
  */
 function onNoteBackspace(voice: VoiceIndex) {
-  if (isPlaying.value) return
+  if (isPlaying.value) {
+    return
+  }
+
   if (props.inputMode === 'insert') {
     backspaceAtEmit(props.cursor.col, voice)
   } else {
@@ -217,13 +231,17 @@ function onNoteBackspace(voice: VoiceIndex) {
  * Delete 键处理：清空当前 cell 内容，不移位，光标不动（两种模式通用）
  */
 function onNoteDelete(voice: VoiceIndex) {
-  if (isPlaying.value) return
+  if (isPlaying.value) {
+    return
+  }
   deleteAtEmit(props.cursor.col, voice)
 }
 
 /** 某格获得焦点 → 同步光标 + 更新羽毛笔位置 */
 function onCellFocus(voice: VoiceIndex, colIndex: number) {
-  if (isPlaying.value) return
+  if (isPlaying.value) {
+    return
+  }
   moveCursor(colIndex, voice)
   nextTick(() => updateQuillPosition())
 }
@@ -231,7 +249,10 @@ function onCellFocus(voice: VoiceIndex, colIndex: number) {
 /** 键盘导航（方向键 + Insert 切换模式），节流长按重复事件以确保定位准确 */
 function onKeydown(e: KeyboardEvent) {
   const target = e.target as HTMLInputElement
-  if (target.tagName !== 'INPUT') return
+
+  if (target.tagName !== 'INPUT') {
+    return
+  }
 
   // 播放时阻止所有编辑相关按键
   if (isPlaying.value) {
@@ -247,11 +268,14 @@ function onKeydown(e: KeyboardEvent) {
   }
 
   const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-  if (!isArrow) return
+  if (!isArrow) {
+    return
+  }
 
   // 长按方向键时节流 repeat 事件，避免焦点切换过快导致光标混乱
   if (e.repeat) {
     const now = Date.now()
+
     if (now - lastArrowMoveTime < ARROW_REPEAT_INTERVAL) {
       e.preventDefault()
       return
@@ -266,30 +290,34 @@ function onKeydown(e: KeyboardEvent) {
   let handled = false
 
   switch (e.key) {
-    case 'ArrowUp':
+    case 'ArrowUp': {
       if (voice > 0) {
         voice = (voice - 1) as VoiceIndex
       }
       handled = true
       break
-    case 'ArrowDown':
+    }
+    case 'ArrowDown': {
       if (voice < 2) {
         voice = (voice + 1) as VoiceIndex
       }
       handled = true
       break
-    case 'ArrowLeft':
+    }
+    case 'ArrowLeft': {
       if (col > 0) {
         col--
       }
       handled = true
       break
-    case 'ArrowRight':
+    }
+    case 'ArrowRight': {
       if (col < props.score.length - 1) {
         col++
       }
       handled = true
       break
+    }
   }
 
   if (handled) {
@@ -335,7 +363,7 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 14px 5px;
-  padding: 0 0 8px;
+  padding: 8px 0;
   margin: 0;
   list-style: none;
 }

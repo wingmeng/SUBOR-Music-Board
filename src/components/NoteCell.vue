@@ -36,8 +36,12 @@ const octaveClass = computed(() => {
 
 /** 将待决后缀转为CSS类名：. → s1（高音），, → s-1（低音） */
 function pendingToClass(suffix: string): string {
-  if (suffix.endsWith('.'))  return 's1'
-  if (suffix.endsWith(','))  return 's-1'
+  if (suffix.endsWith('.')) {
+    return 's1'
+  }
+  if (suffix.endsWith(',')) {
+    return 's-1'
+  }
   return ''
 }
 
@@ -48,18 +52,30 @@ const inputMaxlength = computed(() => {
 
 /** input 显示的文本：聚焦时显示完整值（含升降号），未聚焦时只显示数字 */
 const displayValue = computed(() => {
-  if (pendingAccidental.value) return pendingAccidental.value
-  if (isFocused.value) return noteDisplay.value.display
+  if (pendingAccidental.value) {
+    return pendingAccidental.value
+  }
+  if (isFocused.value) {
+    return noteDisplay.value.display
+  }
   return noteDisplay.value.display.replace(/^[#b]/, '')
 })
 
 /** 升降号字符（未聚焦时在 input 左侧显示） */
 const accidentalChar = computed(() => {
-  if (isFocused.value) return ''
-  if (pendingAccidental.value) return pendingAccidental.value
+  if (isFocused.value) {
+    return ''
+  }
+  if (pendingAccidental.value) {
+    return pendingAccidental.value
+  }
   const d = noteDisplay.value.display
-  if (d.startsWith('#')) return '#'
-  if (d.startsWith('b')) return 'b'
+  if (d.startsWith('#')) {
+    return '#'
+  }
+  if (d.startsWith('b')) {
+    return 'b'
+  }
   return ''
 })
 
@@ -104,10 +120,14 @@ function onInput(e: Event) {
   }
 
   // 八度修饰符：. 高音，, 低音，最多 1 级，不能混用
-  if (char === '.' || char === ',') {
+  if (['.', ','].includes(char)) {
     // 已达上限或与现有方向冲突 → 忽略
-    if (pendingOctave.value.length >= 1) return
-    if (pendingOctave.value && pendingOctave.value[0] !== char) return
+    if (pendingOctave.value.length >= 1) {
+      return
+    }
+    if (pendingOctave.value && pendingOctave.value[0] !== char) {
+      return
+    }
     pendingOctave.value += char
     target.value = ''
     return
@@ -236,10 +256,7 @@ defineExpose({ focus })
 .tone::after {
   position: absolute;
   left: 50%;
-  width: 1em;
-  font-size: 0.4em;
-  pointer-events: none;
-  color: #fff;
+  font-size: 0.5em;
 }
 
 /* 高音标记：音符上方加点 */
@@ -260,7 +277,6 @@ input {
   display: block;
   width: auto;
   min-width: 1em;
-  max-width: 1em;
   height: 1em;
   box-sizing: border-box;
   text-align: center;
@@ -274,16 +290,13 @@ input {
   field-sizing: content;
 }
 
-input:focus {
-  max-width: 2.6em;
-}
-
 /* 播放禁用状态 */
 .tone.disabled input {
   cursor: not-allowed;
 }
 
 .shake {
+  outline: 1px solid;
   animation: shake 0.8s ease-in-out;
 }
 

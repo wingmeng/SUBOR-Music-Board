@@ -75,6 +75,9 @@ export class Sequencer {
       // 从下一列开始用新调号重新调度（时值不变，无需调 playbackWallStart）
       if (nextCol < this.score.length) {
         this.scheduleAllNotes(nextCol)
+        // 重调度后音频从 engine.currentTime + 0.1（≈100ms后）开始播放，
+        // 同步调整 playbackWallStart 使指示器也在 100ms 后到达 nextCol
+        this.playbackWallStart = performance.now() - (nextCol * interval * 1000) + 100
       }
 
       this._rescheduling = false
@@ -106,7 +109,9 @@ export class Sequencer {
       // 从下一列开始用新 BPM 重新调度
       if (nextCol < effectiveLength) {
         const newInterval = 60 / this.bpm
-        this.playbackWallStart = performance.now() - (currentCol * newInterval * 1000)
+        // 重调度后音频从 engine.currentTime + 0.1（≈100ms后）开始播放，
+        // 设置 playbackWallStart 使指示器也在 100ms 后到达 nextCol
+        this.playbackWallStart = performance.now() - (nextCol * newInterval * 1000) + 100
         this.scheduleAllNotes(nextCol)
       }
 

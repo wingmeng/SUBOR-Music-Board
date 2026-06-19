@@ -49,7 +49,7 @@ defineExpose({ focusVoice })
 li {
   display: flex;
   flex-direction: column;
-  padding-bottom: 2px;
+  padding: 4px 0 6px;
   border-bottom: 2px solid #699;
 }
 

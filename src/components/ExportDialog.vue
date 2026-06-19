@@ -16,9 +16,11 @@ const titleValid = computed(() => title.value.trim().length > 0)
 
 function handleConfirm() {
   const trimmedTitle = title.value.trim()
+
   if (!trimmedTitle) {
     return
   }
+  
   emit('confirm', trimmedTitle, description.value.trim())
   resetForm()
 }
@@ -36,8 +38,9 @@ function resetForm() {
 
 <template>
   <dialog
+    v-if="visible"
     class="nes-dialog"
-    :open="visible"
+    open
   >
     <p class="title">导出乐谱</p>
     <form
@@ -73,7 +76,7 @@ function resetForm() {
           class="nes-btn"
           @click="handleCancel"
         >
-          取消
+          CLOSE
         </button>
         <button
           type="submit"
@@ -81,7 +84,7 @@ function resetForm() {
           :class="{'is-disabled': !titleValid}"
           :disabled="!titleValid"
         >
-          导出
+          SAVE
         </button>
       </menu>
     </form>

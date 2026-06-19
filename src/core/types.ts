@@ -72,7 +72,7 @@ export type InputMode = 'insert' | 'overwrite'
 export type PlaybackState = 'stopped' | 'playing' | 'paused'
 
 /** 重复模式 */
-export type RepeatMode = 'none' | '1' | '2' | '3'
+export type RepeatMode = false
 
 /** 合法的记谱输入字符正则（单次按键字符验证：数字、升降号、八度修饰符、空格） */
 export const NOTE_CHAR_REGEX = /^[1-7#b., ]$/
@@ -91,15 +91,17 @@ export function isValidNoteChar(char: string): boolean {
  * 例如: "1"、"1."、"1,"、"#1."、"b3,"
  */
 export function isValidNoteValue(value: string): boolean {
-  if (value === ' ' || value === '') return true
-  return /^(#[1-7]|b[1-7]|[1-7])(\.|,)?$/.test(value)
+  if (value.trim() === '') {
+    return true
+  }
+  return /^[#b]?[1-7][\.,]?$/.test(value)
 }
 
 /** 默认列数 */
-export const DEFAULT_COLUMNS = 150
+export const DEFAULT_COLUMNS = 125
 
 /**
- * 速度档位（BPM）
+ * 速度档位（BPM），八分音符
  *
  * | 档位 | BPM | 说明     |
  * |------|-----|----------|

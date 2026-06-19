@@ -17,7 +17,6 @@ export function usePlayback(options: UsePlaybackOptions) {
   const state: Ref<PlaybackState> = ref('stopped')
   const currentColumn: Ref<number> = ref(0)
   const loop: Ref<boolean> = ref(false)
-
   const sequencer = getSequencer()
 
   // 初始化序列器

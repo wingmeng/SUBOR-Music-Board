@@ -1,5 +1,35 @@
+<script setup lang="ts">
+import { ref, onBeforeUnmount } from 'vue'
+
+const clickCount = ref(0)
+const bouncing = ref(false)
+let clickTimer: ReturnType<typeof setTimeout> | null = null
+
+function handleClick() {
+  clickCount.value++
+  if (clickCount.value >= 10) {
+    bouncing.value = true
+  }
+  // 每次点击重置计时器，停止点击后恢复
+  if (clickTimer) {
+    clearTimeout(clickTimer)
+  }
+  clickTimer = setTimeout(() => {
+    clickCount.value = 0
+    bouncing.value = false
+    clickTimer = null
+  }, 600)
+}
+
+onBeforeUnmount(() => {
+  if (clickTimer) {
+    clearTimeout(clickTimer)
+  }
+})
+</script>
+
 <template>
-  <div class="ink-bottle">
+  <div class="ink-bottle" :class="{ bouncing }" @click="handleClick">
     <b>INK</b>
   </div>
 </template>
@@ -7,8 +37,8 @@
 <style scoped>
 .ink-bottle {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
+  right: 20px;
+  bottom: 8px;
   width: fit-content;
   padding: 3px 2px 2px;
   text-align: right;
@@ -16,7 +46,17 @@
   color: #3cc;
   background: linear-gradient(to bottom, transparent 57%, currentColor 0);
   z-index: 10;
-  pointer-events: none;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.ink-bottle.bouncing {
+  animation: ink-bounce 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes ink-bounce {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-8px); }
 }
 
 .ink-bottle::before {

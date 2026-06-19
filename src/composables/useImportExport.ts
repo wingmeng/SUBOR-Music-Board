@@ -1,4 +1,4 @@
-import type { Score, KeySignature, ExportData } from '../core/types'
+import type { Score, KeySignature, ExportData, Column } from '../core/types'
 import { DEFAULT_COLUMNS, EXPORT_MIME_TYPE, KEY_SIGNATURES, BPM_LIST } from '../core/types'
 
 export interface UseImportExportOptions {
@@ -51,11 +51,12 @@ export function useImportExport(options: UseImportExportOptions) {
    */
   function importScore(): void {
     const input = document.createElement('input')
+
     input.type = 'file'
     input.accept = '.json,.subor.json'
-
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
+
       if (!file) {
         return
       }
@@ -63,9 +64,9 @@ export function useImportExport(options: UseImportExportOptions) {
       try {
         const text = await file.text()
         const data = JSON.parse(text) as ExportData
-
         // 验证数据格式
         const validated = validateData(data)
+
         if (validated) {
           onImport(validated)
         }
@@ -116,15 +117,15 @@ export function useImportExport(options: UseImportExportOptions) {
               return note
             }
             return ' '
-          }) as [string, string, string]
+          }) as Column
         }
-        return [' ', ' ', ' '] as [string, string, string]
+        return [' ', ' ', ' ']
       })
     }
 
     // 如果乐谱为空，创建空白乐谱
     if (score.length === 0) {
-      score = Array.from({ length: DEFAULT_COLUMNS }, () => [' ', ' ', ' '] as [string, string, string])
+      score = Array.from({ length: DEFAULT_COLUMNS }, () => [' ', ' ', ' '] as Column)
     }
 
     return { bpm, keySignature, score }

@@ -34,10 +34,14 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
    * 插入模式：在 col 处插入音符，col 及之后同声部音符右移一位，末位丢弃
    */
   function insertNoteAt(col: number, voice: VoiceIndex, char: string) {
-    if (col < 0 || col >= score.length) return
+    if (col < 0 || col >= score.length) {
+      return
+    }
+
     for (let i = score.length - 1; i > col; i--) {
       score[i][voice] = score[i - 1][voice]
     }
+    
     score[col][voice] = char
   }
 
@@ -46,11 +50,16 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
    * 返回是否成功执行（col=0 时无法操作）
    */
   function backspaceAt(col: number, voice: VoiceIndex): boolean {
-    if (col <= 0 || col >= score.length + 1) return false
+    if (col <= 0 || col >= score.length + 1) {
+      return false
+    }
+
     const deleteCol = col - 1
+
     for (let i = deleteCol; i < score.length - 1; i++) {
       score[i][voice] = score[i + 1][voice]
     }
+
     score[score.length - 1][voice] = ' '
     return true
   }
@@ -86,6 +95,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
 
     // 加载新数据（最多加载 DEFAULT_COLUMNS 列）
     const loadLength = Math.min(newScore.length, DEFAULT_COLUMNS)
+    
     for (let i = 0; i < loadLength; i++) {
       score.push([...newScore[i]] as Column)
     }

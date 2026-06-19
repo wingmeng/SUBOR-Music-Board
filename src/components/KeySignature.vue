@@ -9,6 +9,7 @@ const isEnd = computed(() => KEY_SIGNATURES.indexOf(modelValue.value) === KEY_SI
 
 function prevKey() {
   const idx = KEY_SIGNATURES.indexOf(modelValue.value)
+
   if (idx > 0) {
     modelValue.value = KEY_SIGNATURES[idx - 1]
   }
@@ -16,6 +17,7 @@ function prevKey() {
 
 function nextKey() {
   const idx = KEY_SIGNATURES.indexOf(modelValue.value)
+  
   if (idx < KEY_SIGNATURES.length - 1) {
     modelValue.value = KEY_SIGNATURES[idx + 1]
   }

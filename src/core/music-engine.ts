@@ -1,9 +1,9 @@
 /**
  * 音乐引擎
  *
- * 使用原生 Web Audio API，完全独立于 Tone.js。
+ * 使用原生 Web Audio API
  * 每个音符创建独立的 OscillatorNode + GainNode，
- * 精确匹配 jinglebell.html 的增益调度模式:
+ * 增益调度:
  *   gain = 1.0 → linearRampToValueAtTime(1.0, startTime)
  *              → linearRampToValueAtTime(0.0, startTime + duration)
  *
@@ -39,9 +39,10 @@ export class MusicEngine {
    * 初始化音频上下文（需要用户交互后调用）
    */
   async init(): Promise<void> {
-    if (this.initialized) return
+    if (this.initialized) {
+      return
+    }
 
-    // 创建自己的 AudioContext，不依赖 Tone.js
     const Ctx = (window as any).webkitAudioContext || window.AudioContext
     const ctx = new Ctx()
     this.audioContext = ctx
@@ -51,7 +52,7 @@ export class MusicEngine {
       await ctx.resume()
     }
 
-    // 创建主压缩器（与 jinglebell 一致：使用默认参数）
+    // 创建主压缩器
     const compressor = ctx.createDynamicsCompressor()
     compressor.connect(ctx.destination)
     this.compressor = compressor
@@ -75,14 +76,13 @@ export class MusicEngine {
   }
 
   /**
-   * 预调度一个音符（精确匹配 jinglebell.html 的 playNote 逻辑）
+   * 预调度一个音符
    *
-   * jinglebell 模式:
-   *   oscillator.start(startTime)
-   *   oscillator.stop(startTime + duration)
-   *   gainNode.gain.value = 1.0
-   *   gainNode.gain.linearRampToValueAtTime(1.0, startTime)
-   *   gainNode.gain.linearRampToValueAtTime(0.0, startTime + duration)
+   * oscillator.start(startTime)
+   * oscillator.stop(startTime + duration)
+   * gainNode.gain.value = 1.0
+   * gainNode.gain.linearRampToValueAtTime(1.0, startTime)
+   * gainNode.gain.linearRampToValueAtTime(0.0, startTime + duration)
    *
    * @param startTime AudioContext 绝对时间（秒），必须 >= ctx.currentTime
    * @param duration  音符持续时长（秒）
@@ -93,13 +93,15 @@ export class MusicEngine {
     startTime: number,
     duration: number
   ): void {
-    if (midiNote === null || !this.audioContext || !this.compressor) return
+    if (midiNote === null || !this.audioContext || !this.compressor) {
+      return
+    }
 
     const ctx = this.audioContext
 
-    // 八度缩放因子（匹配 jinglebell 的 octave 参数）
-    //   voice 0 (主旋律/方波): ×2  → 高八度
-    //   voice 1 (和弦律/方波): ×1  → 原始音高
+    // 八度缩放因子：
+    //   voice 0 (主旋律/方波): ×2   → 高八度
+    //   voice 1 (和弦律/方波): ×1   → 原始音高
     //   voice 2 (低频/三角波): ×0.5 → 低八度
     // 三声部分布在高、中、低三个音域，形成层次分明的三声部效果
     const OCTAVE_MULTIPLIERS = [2, 1, 0.5]
@@ -125,6 +127,7 @@ export class MusicEngine {
       const gainNode = ctx.createGain()
       const TRIANGLE_BOOST = 2.5
       const fadeMs = 0.003 // 3ms 淡出消除 Click
+
       gainNode.gain.setValueAtTime(0, startTime)
       gainNode.gain.linearRampToValueAtTime(TRIANGLE_BOOST, startTime + 0.001) // 1ms attack
       gainNode.gain.setValueAtTime(TRIANGLE_BOOST, stopTime - fadeMs)
@@ -132,7 +135,7 @@ export class MusicEngine {
       osc.connect(gainNode)
       gainNode.connect(this.compressor)
     } else {
-      // 方波：精确匹配 jinglebell 的增益调度
+      // 方波
       const gainNode = ctx.createGain()
       gainNode.gain.value = 1.0
       // 在 startTime 确认 gain = 1.0（创建 schedule 锚点）
@@ -158,7 +161,9 @@ export class MusicEngine {
    * 立即停止所有声音
    */
   stopAll(): void {
-    if (!this.audioContext) return
+    if (!this.audioContext) {
+      return
+    }
 
     const now = this.audioContext.currentTime
     const oscillators = Array.from(this.activeOscillators.keys())
@@ -180,7 +185,9 @@ export class MusicEngine {
    * 当前列正在发音的音符保留不动，避免卡顿。
    */
   stopFrom(fromTime: number): void {
-    if (!this.audioContext) return
+    if (!this.audioContext) {
+      return
+    }
 
     const now = this.audioContext.currentTime
     const toStop: OscillatorNode[] = []
@@ -193,6 +200,7 @@ export class MusicEngine {
 
     for (const osc of toStop) {
       this.activeOscillators.delete(osc)
+
       try {
         osc.stop(now + 0.005)
       } catch {
@@ -206,14 +214,17 @@ export class MusicEngine {
    */
   dispose(): void {
     this.stopAll()
+
     if (this.compressor) {
       this.compressor.disconnect()
       this.compressor = null
     }
+
     if (this.audioContext) {
       this.audioContext.close()
       this.audioContext = null
     }
+    
     this.initialized = false
     engineInstance = null
   }

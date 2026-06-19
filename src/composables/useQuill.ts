@@ -17,15 +17,16 @@ export function useQuill(): QuillAPI {
 
   /**
    * 水平偏移量：羽毛笔经 rotate(120deg) 旋转后，
-   * 笔尖视觉位置距元素左边缘约 10px。
+   * 笔尖视觉位置距元素左边缘的偏移。
    * 将元素的 left 左移此偏移量，即可让笔尖对齐目标位置。
    */
-  const TIP_OFFSET_X = 10
+  const TIP_OFFSET_X = 0
 
-  /** 更新羽毛笔位置（基于 .board-main 的 absolute 坐标系） */
+  /** 更新羽毛笔位置（基于 .board-body 的 absolute 坐标系） */
   function moveTo(el: HTMLElement) {
     const elRect = el.getBoundingClientRect()
-    const container = document.querySelector('.board-main') as HTMLElement | null
+    const container = document.querySelector('.board-body') as HTMLElement | null
+    
     if (container) {
       const containerRect = container.getBoundingClientRect()
       position.x = elRect.left + elRect.width / 2 - containerRect.left - TIP_OFFSET_X

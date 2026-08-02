@@ -29,8 +29,8 @@ const KEY_NOTE_MAP: Record<KeySignature, number[]> = {
 /**
  * 解析记谱字符串，提取音符编号和修饰符
  *
- * @param note 记谱字符串 (如 "1", "#1.", "b3," )
- * @returns 解析结果，或 null 表示无效/休止符
+ * @param note 记谱字符串 (如 "1", "#.1", "b,3" )
+ * @returns 解析结果，或 null 表示无效/休止符/延音线
  */
 function parseNote(note: string): {
   accidental: number      // 升降号: 0=无, 1=升(#), -1=降(b)
@@ -42,13 +42,18 @@ function parseNote(note: string): {
     return null
   }
 
-  // 匹配格式: [升降号?][1-7][八度后缀?]
-  const match = note.match(/^(#|b)?([1-7])(\.|,)?$/)
+  // 延音线：延续前一个音符的时值，不产生新音高
+  if (note === '-') {
+    return null
+  }
+
+  // 匹配格式: [升降号?][八度修饰符?][1-7]
+  const match = note.match(/^(#|b)?(\.|,)?([1-7])$/)
   if (!match) {
     return null
   }
 
-  const [, accidentalChar, noteStr, octaveSuffix] = match
+  const [, accidentalChar, octaveSuffix, noteStr] = match
 
   // 解析升降号
   let accidental = 0
@@ -76,7 +81,7 @@ function parseNote(note: string): {
 /**
  * 将简谱记谱字符串转换为 MIDI 音符编号
  *
- * @param note 记谱字符串 (如 "1", "#1.", "b3," )
+ * @param note 记谱字符串 (如 "1", "#.1", "b,3" )
  * @param keySignature 当前调号
  * @returns MIDI 音符编号，或 null 表示休止符
  */
@@ -115,4 +120,14 @@ export function columnToMidi(
     noteToMidi(column[1], keySignature),
     noteToMidi(column[2], keySignature),
   ]
+}
+
+/**
+ * 判断记谱值是否为延音线 (-)
+ *
+ * 延音线延续前一个音符的时值，不产生新的音高。
+ * 在序列器调度时，延音线应与前一个音符合并为一个更长的振荡器。
+ */
+export function isTie(cell: string): boolean {
+  return cell === '-'
 }

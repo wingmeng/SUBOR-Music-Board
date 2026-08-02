@@ -110,6 +110,16 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     cursor.voice = 0
   }
 
+  /**
+   * 确保乐谱数据至少有 minCols 列，不足时用空白列填充
+   * 用于网格可见列数增加时自动扩展数据
+   */
+  function ensureColumns(minCols: number) {
+    while (score.length < minCols) {
+      score.push(createEmptyColumn())
+    }
+  }
+
   return {
     score: readonly(score),
     cursor: readonly(cursor),
@@ -122,5 +132,6 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     moveCursor,
     resetScore,
     loadScore,
+    ensureColumns,
   }
 }

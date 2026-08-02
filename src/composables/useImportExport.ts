@@ -1,5 +1,5 @@
 import type { Score, KeySignature, ExportData, Column } from '../core/types'
-import { DEFAULT_COLUMNS, EXPORT_MIME_TYPE, KEY_SIGNATURES, BPM_LIST } from '../core/types'
+import { DEFAULT_COLUMNS, EXPORT_MIME_TYPE, KEY_SIGNATURES, BPM_LIST, DEFAULT_BPM, migrateNoteValue } from '../core/types'
 
 export interface UseImportExportOptions {
   /** 当前速度 */
@@ -96,9 +96,9 @@ export function useImportExport(options: UseImportExportOptions) {
     }
 
     // 验证 BPM
-    let bpm = 120
+    let bpm = DEFAULT_BPM
     if (typeof obj.bpm === 'number') {
-      bpm = BPM_LIST.includes(obj.bpm as any) ? obj.bpm : 120
+      bpm = BPM_LIST.includes(obj.bpm as any) ? obj.bpm : DEFAULT_BPM
     }
 
     // 验证调号
@@ -114,7 +114,7 @@ export function useImportExport(options: UseImportExportOptions) {
         if (Array.isArray(col) && col.length === 3) {
           return col.map((note) => {
             if (typeof note === 'string') {
-              return note
+              return migrateNoteValue(note)
             }
             return ' '
           }) as Column

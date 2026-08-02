@@ -1,7 +1,7 @@
 /** 基本音符字符 */
 export type NoteChar = string
 
-/** 八度后缀：.表示高音（上加点），,表示低音（下加点），仅支持1级 */
+/** 八度修饰符（前置）：.表示高音（上加点），,表示低音（下加点），仅支持1级 */
 export type OctaveSuffix = '' | '.' | ','
 /** 解析后的显示信息 */
 export interface NoteDisplay {
@@ -14,26 +14,41 @@ export interface NoteDisplay {
 /**
  * 解析记谱值，返回显示信息和八度CSS类
  *
- * 存储格式: [升降号?][音符][八度后缀?]
- * 例如: "1" → 中音do, "1." → 高音do, "1," → 低音do
- *       "#1." → 高音升do, "b3," → 低音降mi
+ * 存储格式: [升降号?][八度修饰符?][音符] | "-" (延音线)
+ * 例如: "1" → 中音do, ".1" → 高音do, ",1" → 低音do
+ *       "#.1" → 高音升do, "b,3" → 低音降mi
+ *       "-" → 延音线（延续前一个音符的时值）
  */
 export function parseNoteValue(value: string): NoteDisplay {
   if (value === ' ' || value === '') {
     return { display: '', octaveClass: '' }
   }
 
+  if (value === '-') {
+    return { display: '-', octaveClass: '' }
+  }
+
   let display = value
   let octaveClass = ''
 
-  // 从末尾解析八度后缀（仅支持1级）
-  if (display.endsWith('.')) {
-    octaveClass = 's1'
-    display = display.slice(0, -1)
-  } else if (display.endsWith(',')) {
-    octaveClass = 's-1'
-    display = display.slice(0, -1)
+  // 跳过前置升降号后，从开头解析八度修饰符（仅支持1级）
+  let rest = display
+  let accidental = ''
+  if (rest.startsWith('#') || rest.startsWith('b')) {
+    accidental = rest[0]
+    rest = rest.slice(1)
   }
+
+  if (rest.startsWith('.')) {
+    octaveClass = 's1'
+    rest = rest.slice(1)
+  } else if (rest.startsWith(',')) {
+    octaveClass = 's-1'
+    rest = rest.slice(1)
+  }
+
+  // 还原显示内容：升降号 + 去掉八度修饰符后的部分
+  display = accidental + rest
 
   return { display, octaveClass }
 }
@@ -74,12 +89,12 @@ export type PlaybackState = 'stopped' | 'playing' | 'paused'
 /** 重复模式 */
 export type RepeatMode = false
 
-/** 合法的记谱输入字符正则（单次按键字符验证：数字、升降号、八度修饰符、空格） */
-export const NOTE_CHAR_REGEX = /^[1-7#b., ]$/
+/** 合法的记谱输入字符正则（单次按键字符验证：数字、升降号、八度修饰符、延音线、空格） */
+export const NOTE_CHAR_REGEX = /^[1-7#b.,\- ]$/
 
 /**
  * 判断单字符是否为合法记谱输入。
- * 注意：完整记谱值是多个字符的组合（如 "1."、"#4"），此函数只验证单个按键字符。
+ * 注意：完整记谱值是多个字符的组合（如 ".1"、"#4"），此函数只验证单个按键字符。
  */
 export function isValidNoteChar(char: string): boolean {
   return NOTE_CHAR_REGEX.test(char)
@@ -87,14 +102,32 @@ export function isValidNoteChar(char: string): boolean {
 
 /**
  * 判断完整字符串是否为合法记谱值。
- * 格式: [升降号?][1-7][八度后缀?] | 空格 | 空串
- * 例如: "1"、"1."、"1,"、"#1."、"b3,"
+ * 格式: [升降号?][八度修饰符?][1-7] | 延音线(-) | 空格 | 空串
+ * 例如: "1"、".1"、",1"、"#.1"、"b,3"、"-" (延音线)
  */
 export function isValidNoteValue(value: string): boolean {
   if (value.trim() === '') {
     return true
   }
-  return /^[#b]?[1-7][\.,]?$/.test(value)
+  if (value === '-') {
+    return true
+  }
+  return /^[#b]?[\.,]?[1-7]$/.test(value)
+}
+
+/**
+ * 将旧版记谱值（数字在前、八度修饰符在后，如 "1."、"1,"）迁移为新版
+ * （八度修饰符在数字前，如 ".1"、",1"）。
+ * 新版格式本函数原样返回，可安全幂等调用。
+ * 例如: "1." → ".1"、"1," → ",1"、"#1." → "#.1"、"b3," → "b,3"、"5" → "5"
+ */
+export function migrateNoteValue(value: string): string {
+  const m = value.match(/^(#|b)?([1-7])([.,])?$/)
+  if (!m) {
+    return value
+  }
+  const [, accidental, digit, octave] = m
+  return (accidental ?? '') + (octave ?? '') + digit
 }
 
 /** 默认列数 */
@@ -103,19 +136,21 @@ export const DEFAULT_COLUMNS = 125
 /**
  * 速度档位（BPM），八分音符
  *
- * | 档位 | BPM | 说明     |
- * |------|-----|----------|
- * | 0    |  90 | 最慢     |
- * | 1    | 100 |          |
- * | 2    | 120 |          |
- * | 3    | 130 |          |
- * | 4    | 140 |          |
- * | 5    | 160 | 最快     |
+ * 整体偏低、舒缓，适配儿童/教学向曲目（每格间隔 = 30 / BPM 秒）。
+ *
+ * | 档位 | BPM | 每格时长 | 说明     |
+ * |------|-----|---------|----------|
+ * | 0    |  60 | 0.500s  | 最慢（摇篮曲/慢练）|
+ * | 1    |  75 | 0.400s  | 慢       |
+ * | 2    |  90 | 0.333s  | 适中（默认）|
+ * | 3    | 105 | 0.286s  | 适中偏快 |
+ * | 4    | 120 | 0.250s  | 快板     |
+ * | 5    | 135 | 0.222s  | 最快     |
  */
-export const BPM_LIST = [90, 100, 120, 130, 140, 160] as const
+export const BPM_LIST = [60, 75, 90, 105, 120, 135] as const
 
-/** 默认 BPM */
-export const DEFAULT_BPM = 120
+/** 默认 BPM（温和、易唱的适中级） */
+export const DEFAULT_BPM = 90
 
 /**
  * 调号定义
@@ -124,12 +159,9 @@ export const DEFAULT_BPM = 120
  * |------|------|-----------|
  * | C    | C大调 | C         |
  * | D    | D大调 | D         |
- * | E    | E大调 | E         |
  * | F    | F大调 | F         |
  * | G    | G大调 | G         |
  * | A    | A大调 | A         |
- * | Bb   | 降B调 | B♭        |
- * | Eb   | 降E调 | E♭        |
  */
 export type KeySignature = 'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'Bb' | 'Eb'
 

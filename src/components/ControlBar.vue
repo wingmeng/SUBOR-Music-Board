@@ -44,7 +44,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 4px 0;
+  margin-bottom: 20px;
   font-size: 16px;
 }
 

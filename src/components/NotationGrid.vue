@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, inject } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, inject, watch } from 'vue'
 import NoteColumn from './NoteColumn.vue'
 import type { QuillAPI } from '../composables/useQuill'
 import { getMusicEngine } from '../core/music-engine'
 import { noteToMidi } from '../core/note-map'
 import type { CursorPosition, VoiceIndex, KeySignature, InputMode, PlaybackState } from '../core/types'
+import { isValidNoteChar } from '../core/types'
 
 const props = defineProps<{
   score: readonly (readonly [string, string, string])[]
@@ -57,6 +58,18 @@ const engine = getMusicEngine()
 
 const columnRefs = ref<InstanceType<typeof NoteColumn>[]>([])
 
+/** 待决升降号（# / b），最多 1 个，输入数字后拼合提交 */
+const pendingAccidental = ref('')
+
+/** 待决八度修饰符（. / ,），最多 1 个，输入数字后拼合提交 */
+const pendingOctave = ref('')
+
+/** 清空待决修饰符（光标移动 / 播放 / 对话框 等） */
+function clearPending() {
+  pendingAccidental.value = ''
+  pendingOctave.value = ''
+}
+
 /** 输入队列：动画进行期间缓存后续输入，保证每格依次处理 */
 const inputQueue: { voice: VoiceIndex; char: string }[] = []
 /** 书写动画是否正在进行 */
@@ -67,6 +80,95 @@ let cursorMovedDuringAnimation = false
 /** 方向键节流：长按时限制移动频率，避免焦点切换过快 */
 const ARROW_REPEAT_INTERVAL = 120
 let lastArrowMoveTime = 0
+
+/** 音符键长按重复：首次输入后的初始延迟（ms），略短于系统默认以更快响应长按意图 */
+const NOTE_REPEAT_INITIAL_DELAY = 350
+/** 音符键长按重复：每次重复输入的间隔（ms），约每秒 9 次，节奏清晰可控 */
+const NOTE_REPEAT_INTERVAL = 110
+/** 当前按住待重复的音符字符；为 null 表示没有活跃的长按重复 */
+let repeatChar: string | null = null
+/** 长按重复定时器句柄 */
+let repeatTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 行高估算值（em 单位，3个 NoteCell + padding + border） */
+const ROW_HEIGHT_ESTIMATE_EM = 5.5
+/** 行间距（px，对应 gap: 14px 5px 中的行 gap） */
+const ROW_GAP_PX = 14
+/** 列间距（px，对应 gap: 14px 5px 中的列 gap） */
+const COLUMN_GAP_PX = 5
+/** 网格上下内边距（px，对应 padding: 8px 0） */
+const GRID_PADDING_Y = 16
+/** 单列宽度（em，对应 NoteCell .tone width: 1em） */
+const COLUMN_WIDTH_EM = 1
+
+const gridRef = ref<HTMLElement | null>(null)
+/** 每行实际列数（根据容器宽度动态计算） */
+const columnsPerRow = ref(25)
+/** 当前可见行数 */
+const visibleRows = ref(5)
+
+let resizeObserver: ResizeObserver | null = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * 根据容器尺寸计算每行列数和可显示行数
+ * 考虑：容器可用宽度、单列宽度、列间距、容器可用高度、单行高度、行间距、网格内边距
+ */
+function calculateLayout() {
+  const container = gridRef.value?.parentElement
+  if (!container) {
+    return
+  }
+
+  // 从网格容器获取实际 font-size，因为列宽基于 em 单位，必须用渲染时的实际值
+  const fontSize = parseFloat(getComputedStyle(gridRef.value!).fontSize) || 16
+
+  // ── 计算每行列数 ──
+  const containerWidth = container.clientWidth
+  const colWidthPx = COLUMN_WIDTH_EM * fontSize
+  // 第一列无左间距，后续每列增加一个 gap
+  const colsFromWidth = Math.floor(
+    (containerWidth + COLUMN_GAP_PX) / (colWidthPx + COLUMN_GAP_PX)
+  )
+  columnsPerRow.value = Math.max(1, colsFromWidth)
+
+  // ── 计算可见行数 ──
+  const containerHeight = container.clientHeight
+
+  // 动态测量单行高度，若尚未渲染则使用估算值
+  const firstColumn = gridRef.value?.querySelector(':scope > li') as HTMLElement | null
+  let rowHeight: number
+  if (firstColumn) {
+    rowHeight = firstColumn.offsetHeight
+  } else {
+    rowHeight = ROW_HEIGHT_ESTIMATE_EM * fontSize
+  }
+
+  const availableHeight = containerHeight - GRID_PADDING_Y
+  const rowsFromHeight = Math.floor(
+    (availableHeight + ROW_GAP_PX) / (rowHeight + ROW_GAP_PX)
+  )
+
+  // 仅根据容器高度决定行数，确保不超出可视区域（避免不完整行和滚动条）
+  visibleRows.value = Math.max(1, rowsFromHeight)
+}
+
+/** 防抖版布局计算，避免 ResizeObserver 高频触发导致过度计算 */
+function debouncedCalculateLayout() {
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer)
+  }
+  debounceTimer = setTimeout(() => {
+    calculateLayout()
+    debounceTimer = null
+  }, 150)
+}
+
+/** 可见列数：行数 × 每行列数 */
+const visibleColumns = computed(() => visibleRows.value * columnsPerRow.value)
+
+/** 截取可见范围内的乐谱列 */
+const visibleScore = computed(() => props.score.slice(0, visibleColumns.value))
 
 /** 聚焦到指定列的指定声部 */
 function focusCell(col: number, voice: VoiceIndex) {
@@ -109,8 +211,12 @@ function retreatToPrev() {
   }
 }
 
-/** 播放单个音符 */
+/** 播放单个音符（延音线不播放声音） */
 async function playNote(voice: VoiceIndex, char: string) {
+  if (char === '-') {
+    return
+  }
+
   if (!engine.isInitialized()) {
     await engine.init()
   }
@@ -125,6 +231,21 @@ async function playNote(voice: VoiceIndex, char: string) {
 /** 记谱输入 → 更新数据 + 播放声音 + 书写动画 + 前进（支持队列缓冲） */
 async function onNoteInput(voice: VoiceIndex, char: string) {
   if (isPlaying.value) {
+    return
+  }
+
+  // 修饰符（来自 IME input 事件路径）：暂存，不提交
+  // keydown 路径的修饰符在 onDocumentKeydown 中直接处理，不走 onNoteInput
+  if (char === '#' || char === 'b') {
+    if (voice === props.cursor.voice) {
+      pendingAccidental.value = char
+    }
+    return
+  }
+  if (char === '.' || char === ',') {
+    if (voice === props.cursor.voice) {
+      pendingOctave.value = char
+    }
     return
   }
 
@@ -207,7 +328,7 @@ function handleQuillAnimationEnd() {
   }
 }
 
-defineExpose({ handleQuillAnimationEnd })
+defineExpose({ handleQuillAnimationEnd, visibleColumns })
 
 /**
  * Backspace 键处理：
@@ -237,20 +358,51 @@ function onNoteDelete(voice: VoiceIndex) {
   deleteAtEmit(props.cursor.col, voice)
 }
 
-/** 某格获得焦点 → 同步光标 + 更新羽毛笔位置 */
+/** 某格获得焦点 → 清除待决修饰符 + 同步光标 + 更新羽毛笔位置 */
 function onCellFocus(voice: VoiceIndex, colIndex: number) {
   if (isPlaying.value) {
     return
   }
+  clearPending()
   moveCursor(colIndex, voice)
   nextTick(() => updateQuillPosition())
 }
 
-/** 键盘导航（方向键 + Insert 切换模式），节流长按重复事件以确保定位准确 */
-function onKeydown(e: KeyboardEvent) {
-  const target = e.target as HTMLInputElement
+/** 清除长按重复定时器（松开按键 / 播放开始 / 到达末尾 / 卸载 时调用） */
+function clearNoteRepeat() {
+  if (repeatTimer !== null) {
+    clearTimeout(repeatTimer)
+    repeatTimer = null
+  }
+  repeatChar = null
+}
 
-  if (target.tagName !== 'INPUT') {
+/**
+ * 触发一次音符输入（写入数据 + 播放声音 + 羽毛笔书写动画 + 队列缓冲），
+ * 供首次按下与长按重复共用。
+ *
+ * 走标准输入路径 onNoteInput → processInput，确保动画与声音完整触发：
+ * - 首次输入启动书写动画，写入当前格
+ * - 动画期间到达的重复输入自动进入 inputQueue，
+ *   由 handleQuillAnimationEnd 在动画结束时批量写入并推进光标
+ * 到达最后一列、对话框打开或开始播放时停止重复，避免越界写入。
+ */
+function commitNoteChar(char: string) {
+  if (document.querySelector('dialog[open]') || isPlaying.value) {
+    clearNoteRepeat()
+    clearPending()
+    return
+  }
+
+  // 走标准输入路径（写入 + 声音 + 羽毛笔动画 + 队列缓冲），
+  // 而非直接 setNote/insertNoteAt + moveCursor（那条路径绕过了动画
+  void onNoteInput(props.cursor.voice, char)
+}
+
+/** 处理方向键导航和全局音符输入（供 grid 内和 document 级共用） */
+function onDocumentKeydown(e: KeyboardEvent) {
+  // 对话框打开时不拦截任何按键，避免干扰对话框内交互
+  if (document.querySelector('dialog[open]')) {
     return
   }
 
@@ -260,15 +412,114 @@ function onKeydown(e: KeyboardEvent) {
     return
   }
 
-  // Insert 键：切换插入/覆盖模式
+  // 处理方向键导航
+  const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+  if (isArrow) {
+    handleArrowKey(e)
+    return
+  }
+
+  // 处理 Insert 键切换模式
   if (e.key === 'Insert') {
     e.preventDefault()
     emit('update:inputMode', props.inputMode === 'insert' ? 'overwrite' : 'insert')
     return
   }
 
-  const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-  if (!isArrow) {
+  // 处理 Backspace：有待决修饰符时先清除，否则删除前一格
+  if (e.key === 'Backspace') {
+    e.preventDefault()
+    if (pendingOctave.value) {
+      pendingOctave.value = ''
+      return
+    }
+    if (pendingAccidental.value) {
+      pendingAccidental.value = ''
+      return
+    }
+    backspaceAtEmit(props.cursor.col, props.cursor.voice)
+    retreatToPrev()
+    return
+  }
+
+  // 处理 Delete：有待决修饰符时清除，否则删除当前格
+  if (e.key === 'Delete') {
+    e.preventDefault()
+    if (pendingAccidental.value || pendingOctave.value) {
+      clearPending()
+      return
+    }
+    deleteAtEmit(props.cursor.col, props.cursor.voice)
+    return
+  }
+
+  // 处理音符字符输入（单字符且非控制键）
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // 兼容中文输入法：全角逗号 ，/ 句号 。 自动转为半角 ,/.
+    const char = e.key === '，' ? ',' : e.key === '。' ? '.' : e.key
+
+    // 验证是否为合法音符字符
+    if (!isValidNoteChar(char)) {
+      return
+    }
+
+    // 浏览器自动 repeat 事件交由自定义定时器统一处理，
+    // 保证重复间隔稳定、松开按键立即停止，不依赖系统键盘重复率
+    if (e.repeat) {
+      e.preventDefault()
+      return
+    }
+
+    e.preventDefault()
+
+    // ── 修饰符：暂存，不提交，不启动长按重复 ──
+    // # / b：升降号，最多 1 个，重复输入后者覆盖前者
+    if (char === '#' || char === 'b') {
+      pendingAccidental.value = char
+      return
+    }
+
+    // . / ,：八度修饰符，最多 1 个，重复输入后者覆盖前者
+    if (char === '.' || char === ',') {
+      pendingOctave.value = char
+      return
+    }
+
+    // ── 可提交字符（数字 1-7 / 空格 / 延音线 -）──
+    // 空格和延音线只能单独输入，有待决修饰符时忽略
+    if ((char === ' ' || char === '-') && (pendingAccidental.value || pendingOctave.value)) {
+      return
+    }
+
+    // 拼合修饰符后提交（首次输入包含修饰符，如 "#.1"）
+    const prefix = pendingAccidental.value
+    const octave = pendingOctave.value
+    clearPending()
+    commitNoteChar(prefix + octave + char)
+
+    // 清理可能残留的旧定时器（多键切换场景），并启动长按重复
+    // 重复的是原始字符（不含修饰符，修饰符只应用于首次输入）
+    if (repeatTimer !== null) {
+      clearTimeout(repeatTimer)
+    }
+    repeatChar = char
+    repeatTimer = setTimeout(function tick() {
+      if (repeatChar === null) {
+        return
+      }
+      commitNoteChar(repeatChar)
+      if (repeatChar !== null) {
+        repeatTimer = setTimeout(tick, NOTE_REPEAT_INTERVAL)
+      }
+    }, NOTE_REPEAT_INITIAL_DELAY)
+  }
+}
+
+/** 处理方向键导航（供 grid 内和 document 级共用） */
+function handleArrowKey(e: KeyboardEvent) {
+  // 播放时阻止所有编辑相关按键
+  if (isPlaying.value) {
+    e.preventDefault()
     return
   }
 
@@ -322,6 +573,7 @@ function onKeydown(e: KeyboardEvent) {
 
   if (handled) {
     e.preventDefault()
+    clearPending()
     // 导航时清空未处理的输入队列，防止旧输入写入新位置
     inputQueue.length = 0
     // 标记动画期间发生了外部导航，防止动画结束时再推进光标
@@ -333,16 +585,59 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+/** 松开按键 → 立即停止长按重复输入 */
+function onDocumentKeyup(e: KeyboardEvent) {
+  if (repeatChar !== null && e.key === repeatChar) {
+    clearNoteRepeat()
+  }
+}
+
+// 开始播放时立即停止长按重复并清除待决修饰符，防止播放期间继续写入
+watch(isPlaying, (playing) => {
+  if (playing) {
+    clearNoteRepeat()
+    clearPending()
+  }
+})
+
 onMounted(() => {
   focusCell(0, 0)
-  nextTick(() => updateQuillPosition())
+  nextTick(() => {
+    updateQuillPosition()
+    // 首次渲染后计算布局
+    calculateLayout()
+  })
+
+  // 全局监听方向键，确保输入框失焦时仍可移动光标
+  document.addEventListener('keydown', onDocumentKeydown)
+  // 全局监听 keyup，松开按键时停止长按重复
+  document.addEventListener('keyup', onDocumentKeyup)
+
+  // 监听容器尺寸变化（窗口缩放、字体大小变化等）
+  const container = gridRef.value?.parentElement
+  if (container) {
+    resizeObserver = new ResizeObserver(debouncedCalculateLayout)
+    resizeObserver.observe(container)
+  }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onDocumentKeydown)
+  document.removeEventListener('keyup', onDocumentKeyup)
+  clearNoteRepeat()
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
 })
 </script>
 
 <template>
-  <ul class="notation" :class="{ disabled: isPlaying }" @keydown="onKeydown">
+  <ul ref="gridRef" class="notation" :class="{ disabled: isPlaying }">
     <NoteColumn
-      v-for="(col, index) in score"
+      v-for="(col, index) in visibleScore"
       :key="index"
       ref="columnRefs"
       :data="col"
@@ -350,6 +645,9 @@ onMounted(() => {
       :is-current="index === currentPlayColumn"
       :is-playing="index === currentPlayColumn"
       :disabled="isPlaying"
+      :pending-accidental="index === props.cursor.col ? pendingAccidental : ''"
+      :pending-octave="index === props.cursor.col ? pendingOctave : ''"
+      :pending-voice="props.cursor.voice"
       @note-input="onNoteInput"
       @note-backspace="onNoteBackspace"
       @note-delete="onNoteDelete"

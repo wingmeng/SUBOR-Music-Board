@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { reactive, toRef, ref, computed, provide } from 'vue'
+import { reactive, toRef, ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
 import Board from './components/Board.vue'
 import NotationGrid from './components/NotationGrid.vue'
 import ControlBar from './components/ControlBar.vue'
 import ExportDialog from './components/ExportDialog.vue'
 import ClearDialog from './components/ClearDialog.vue'
+import HelpDialog from './components/HelpDialog.vue'
 import Quill from './components/Quill.vue'
 import InkBottle from './components/InkBottle.vue'
 import { useNotation } from './composables/useNotation'
@@ -26,6 +27,7 @@ const {
   moveCursor,
   loadScore,
   resetScore,
+  ensureColumns,
 } = useNotation()
 
 const config = reactive({
@@ -60,6 +62,7 @@ const { exportScore, importScore } = useImportExport({
 
 const showExportDialog = ref(false)
 const showClearDialog = ref(false)
+const showHelpDialog = ref(false)
 const inputMode = ref<InputMode>('insert')
 
 const quill = useQuill()
@@ -68,6 +71,16 @@ provide<QuillAPI>('quill', quill)
 const notationGridRef = ref<InstanceType<typeof NotationGrid>>()
 
 const isPlaying = computed(() => playbackState.value === 'playing')
+
+/** 当网格可见列数增加时，自动扩展乐谱数据以填充更多行 */
+watch(
+  () => notationGridRef.value?.visibleColumns,
+  (cols) => {
+    if (cols != null && cols > score.length) {
+      ensureColumns(cols)
+    }
+  },
+)
 
 function onQuillAnimationEnd() {
   quill.onAnimationEnd()
@@ -127,10 +140,31 @@ function handleClearConfirm() {
   showClearDialog.value = false
 }
 
-function showHelp() {
-  // TODO: 实现帮助内容
-  console.log('Help clicked')
+function openHelp() {
+  showHelpDialog.value = true
 }
+
+/** 任意弹框打开时，挂起全局快捷键，避免弹框叠加 */
+const anyDialogOpen = computed(
+  () => showExportDialog.value || showClearDialog.value || showHelpDialog.value,
+)
+
+/** 全局快捷键：Ctrl/Cmd+S 保存（导出乐谱），Ctrl/Cmd+I 打开（导入乐谱） */
+function onGlobalKeydown(e: KeyboardEvent) {
+  if (!(e.ctrlKey || e.metaKey)) return
+  if (anyDialogOpen.value) return
+  const key = e.key.toLowerCase()
+  if (key === 's') {
+    e.preventDefault()
+    handleExport()
+  } else if (key === 'i') {
+    e.preventDefault()
+    handleImport()
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', onGlobalKeydown))
+onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
 </script>
 
 <template>
@@ -206,6 +240,10 @@ function showHelp() {
           @close="showClearDialog = false"
           @confirm="handleClearConfirm"
         />
+        <HelpDialog
+          :visible="showHelpDialog"
+          @close="showHelpDialog = false"
+        />
       </template>
       <template #overlay>
         <Quill
@@ -224,11 +262,12 @@ function showHelp() {
       <div class="side-col">
         <button
           type="button"
-          class="nes-btn is-small is-default"
-          title="帮助"
-          @click="showHelp"
+          class="help-btn"
+          title="使用帮助"
+          aria-label="使用帮助"
+          @click="openHelp"
         >
-          <i class="nes-icon heart is-small"></i>
+          ?
         </button>
         <button
           v-show="playbackState === 'stopped'"
@@ -273,6 +312,36 @@ function showHelp() {
   align-self: flex-start;
   gap: 6px;
   padding-top: 4px;
+}
+
+.help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 1;
+  color: #9fc;
+  background: transparent;
+  border: 2px solid #9fc;
+  border-radius: 50%;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.help-btn:hover {
+  color: #141414;
+  background: #9fc;
+  box-shadow: 0 0 0 2px rgba(153, 255, 204, 0.4);
+}
+
+.help-btn:active {
+  transform: translateY(1px);
 }
 
 .mode-badge {

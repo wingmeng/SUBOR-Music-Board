@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import NoteCell from './NoteCell.vue'
-import type { VoiceIndex } from '../core/types'
+import { VOICES, type VoiceIndex } from '../core/types'
 
 const props = defineProps<{
   data: readonly [string, string, string]
@@ -9,6 +9,9 @@ const props = defineProps<{
   isCurrent: boolean
   isPlaying?: boolean
   disabled?: boolean
+  pendingAccidental?: string
+  pendingOctave?: string
+  pendingVoice?: VoiceIndex
 }>()
 
 const emit = defineEmits<{
@@ -31,16 +34,18 @@ defineExpose({ focusVoice })
 <template>
   <li :class="{ current: isCurrent, playing: isPlaying }">
     <NoteCell
-      v-for="(note, voice) in props.data"
-      :key="voice"
+      v-for="v in VOICES"
       ref="cellRefs"
-      :value="note"
-      :voice="voice as VoiceIndex"
+      :key="v.index"
+      :value="props.data[v.index]"
+      :voice="v.index"
       :disabled="disabled"
-      @input="emit('noteInput', voice as VoiceIndex, $event)"
-      @backspace="emit('noteBackspace', voice as VoiceIndex)"
-      @delete="emit('noteDelete', voice as VoiceIndex)"
-      @focus="emit('cellFocus', voice as VoiceIndex, colIndex)"
+      :pending-accidental="v.index === props.pendingVoice ? (props.pendingAccidental || '') : ''"
+      :pending-octave="v.index === props.pendingVoice ? (props.pendingOctave || '') : ''"
+      @input="emit('noteInput', v.index, $event)"
+      @backspace="emit('noteBackspace', v.index)"
+      @delete="emit('noteDelete', v.index)"
+      @focus="emit('cellFocus', v.index, colIndex)"
     />
   </li>
 </template>
@@ -49,7 +54,7 @@ defineExpose({ focusVoice })
 li {
   display: flex;
   flex-direction: column;
-  padding: 4px 0 6px;
+  padding: 4px 0 8px;
   border-bottom: 2px solid #699;
 }
 

@@ -1,5 +1,5 @@
 import type { Score, KeySignature, PlaybackState } from './types'
-import { columnToMidi } from './note-map'
+import { noteToMidi, isTie } from './note-map'
 import { getMusicEngine } from './music-engine'
 
 /** 播放回调：当播放到某一列时触发 */
@@ -237,16 +237,19 @@ export class Sequencer {
   }
 
   /**
-   * 预调度所有音符
+   * 预调度所有音符（支持延音线合并）
    *
-   * 像 jinglebell 一样，一次性创建所有 OscillatorNode 并设定
-   * 它们在 AudioContext 时间轴上的精确起止时间。
+   * 逐声部扫描乐谱，将音符与后续延音线(-)合并为单个更长的振荡器：
+   * - 音符 "1" 后跟 "-" "-" → 一个持续 3 个格时值的振荡器
+   * - 孤立延音线（开头或休止符后）→ 视为休止符，不调度
+   * - 休止符 → 不调度
+   *
+   * 三角波时长仍为间隔 × 0.93（匹配 jinglebell 比例）。
    */
   private scheduleAllNotes(startColumn: number): void {
     const engine = getMusicEngine()
     const noteInterval = this.getNoteInterval()
-    const noteDuration = this.getNoteDuration()
-    const triangleDuration = noteDuration * 0.93 // 三角波略短（匹配 jinglebell 0.28/0.30）
+    const triangleRatio = 0.93 // 三角波略短（匹配 jinglebell 0.28/0.30）
 
     const effectiveLength = this.getEffectiveLength()
 
@@ -255,15 +258,53 @@ export class Sequencer {
     this.lastScheduleBaseTime = baseTime
     this.lastScheduleStartCol = startColumn
 
-    for (let i = startColumn; i < effectiveLength; i++) {
-      const column = this.score[i]
-      const midiNotes = columnToMidi(column, this.keySignature)
-      const startTime = baseTime + (i - startColumn) * noteInterval
+    // 逐声部独立扫描，合并延音线组
+    for (let voice = 0; voice < 3; voice++) {
+      const isTriangle = voice === 2
+      let i = startColumn
 
-      // 三个声部分别调度
-      engine.scheduleNote(0, midiNotes[0], startTime, noteDuration)
-      engine.scheduleNote(1, midiNotes[1], startTime, noteDuration)
-      engine.scheduleNote(2, midiNotes[2], startTime, triangleDuration)
+      while (i < effectiveLength) {
+        const cellValue = this.score[i][voice]
+
+        // 休止符：跳过
+        if (cellValue === ' ' || cellValue === '') {
+          i++
+          continue
+        }
+
+        // 延音线但无前导音符：视为休止符跳过
+        if (isTie(cellValue)) {
+          i++
+          continue
+        }
+
+        // 正常音符：计算 MIDI，向前扫描延音线
+        const midiNote = noteToMidi(cellValue, this.keySignature)
+        if (midiNote === null) {
+          i++
+          continue
+        }
+
+        const startTime = baseTime + (i - startColumn) * noteInterval
+
+        // 向前扫描连续延音线，计算总时长
+        let tieCount = 0
+        while (
+          i + tieCount + 1 < effectiveLength &&
+          isTie(this.score[i + tieCount + 1][voice])
+        ) {
+          tieCount++
+        }
+
+        const totalCells = 1 + tieCount
+        const duration = totalCells * noteInterval
+        const voiceDuration = isTriangle ? duration * triangleRatio : duration
+
+        engine.scheduleNote(voice, midiNote, startTime, voiceDuration)
+
+        // 跳过音符本身 + 所有延音线格
+        i += totalCells
+      }
     }
   }
 
@@ -333,15 +374,6 @@ export class Sequencer {
     return 30 / this.bpm
   }
 
-  /**
-   * 获取方波音符时长（秒）
-   *
-   * 匹配 jinglebell 模式：方波填满整个间隔（SQUARE_DURATION = NOTE_DURATION），
-   * gain linearRamp 在终点将音量淡出到零，自然形成断奏效果。
-   */
-  private getNoteDuration(): number {
-    return this.getNoteInterval()
-  }
 }
 
 /** 单例序列器实例 */

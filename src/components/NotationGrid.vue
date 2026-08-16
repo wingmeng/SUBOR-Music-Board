@@ -4,7 +4,7 @@ import NoteColumn from './NoteColumn.vue'
 import type { QuillAPI } from '../composables/useQuill'
 import { getMusicEngine } from '../core/music-engine'
 import { noteToMidi } from '../core/note-map'
-import type { CursorPosition, VoiceIndex, KeySignature, InputMode, PlaybackState } from '../core/types'
+import type { CursorPosition, VoiceIndex, KeySignature, PlaybackState } from '../core/types'
 import { isValidNoteChar } from '../core/types'
 
 const props = defineProps<{
@@ -12,7 +12,6 @@ const props = defineProps<{
   cursor: CursorPosition
   currentPlayColumn?: number
   keySignature: KeySignature
-  inputMode: InputMode
   playbackState: PlaybackState
 }>()
 
@@ -20,9 +19,7 @@ const isPlaying = computed(() => props.playbackState === 'playing')
 
 const emit = defineEmits<{
   'update:cursor': [col: number, voice: VoiceIndex]
-  'update:inputMode': [mode: InputMode]
   'set-note': [col: number, voice: VoiceIndex, char: string]
-  'clear-note': [col: number, voice: VoiceIndex]
   'insert-note': [col: number, voice: VoiceIndex, char: string]
   'backspace-at': [col: number, voice: VoiceIndex]
   'delete-at': [col: number, voice: VoiceIndex]
@@ -31,10 +28,6 @@ const emit = defineEmits<{
 
 function setNote(col: number, voice: VoiceIndex, char: string) {
   emit('set-note', col, voice, char)
-}
-
-function clearNote(col: number, voice: VoiceIndex) {
-  emit('clear-note', col, voice)
 }
 
 function insertNoteAt(col: number, voice: VoiceIndex, char: string) {
@@ -266,7 +259,8 @@ async function processInput(voice: VoiceIndex, char: string) {
     writingAnimationActive = true
   }
 
-  if (props.inputMode === 'insert') {
+  // 空格（休止符）插入当前格并右移后续内容；音符/延音线直接覆盖当前格
+  if (char === ' ') {
     insertNoteAt(props.cursor.col, voice, char)
   } else {
     setNote(props.cursor.col, voice, char)
@@ -308,7 +302,9 @@ function handleQuillAnimationEnd() {
     const col = baseCol + 1 + i
     const { voice, char } = queued[i]
 
-    if (props.inputMode === 'insert') {
+    // 空格（休止符）插入并右移后续内容；音符/延音线覆盖
+    // 注：每个输入光标固定前进 1 格，写入列不受此前插入的影响
+    if (char === ' ') {
       insertNoteAt(col, voice, char)
     } else {
       setNote(col, voice, char)
@@ -331,20 +327,14 @@ function handleQuillAnimationEnd() {
 defineExpose({ handleQuillAnimationEnd, visibleColumns })
 
 /**
- * Backspace 键处理：
- * - 插入模式：删除前一个 cell，后续左移填补，光标后退
- * - 覆盖模式：清空前一个 cell，光标后退（不移位）
+ * Backspace 键处理：删除前一个 cell，后续左移填补（与空格插入对称），光标后退
  */
 function onNoteBackspace(voice: VoiceIndex) {
   if (isPlaying.value) {
     return
   }
 
-  if (props.inputMode === 'insert') {
-    backspaceAtEmit(props.cursor.col, voice)
-  } else {
-    clearNote(props.cursor.col - 1, voice)
-  }
+  backspaceAtEmit(props.cursor.col, voice)
   retreatToPrev()
 }
 
@@ -416,13 +406,6 @@ function onDocumentKeydown(e: KeyboardEvent) {
   const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
   if (isArrow) {
     handleArrowKey(e)
-    return
-  }
-
-  // 处理 Insert 键切换模式
-  if (e.key === 'Insert') {
-    e.preventDefault()
-    emit('update:inputMode', props.inputMode === 'insert' ? 'overwrite' : 'insert')
     return
   }
 

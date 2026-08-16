@@ -14,13 +14,12 @@ import { useImportExport } from './composables/useImportExport'
 import { useQuill } from './composables/useQuill'
 import type { QuillAPI } from './composables/useQuill'
 import { DEFAULT_BPM, DEFAULT_KEY_SIGNATURE } from './core/types'
-import type { VoiceIndex, Score, InputMode } from './core/types'
+import type { VoiceIndex, Score } from './core/types'
 
 const {
   score,
   cursor,
   setNote,
-  clearNote,
   insertNoteAt,
   backspaceAt,
   deleteAt,
@@ -63,7 +62,6 @@ const { exportScore, importScore } = useImportExport({
 const showExportDialog = ref(false)
 const showClearDialog = ref(false)
 const showHelpDialog = ref(false)
-const inputMode = ref<InputMode>('insert')
 
 const quill = useQuill()
 provide<QuillAPI>('quill', quill)
@@ -87,20 +85,12 @@ function onQuillAnimationEnd() {
   notationGridRef.value?.handleQuillAnimationEnd()
 }
 
-function toggleInputMode() {
-  inputMode.value = inputMode.value === 'insert' ? 'overwrite' : 'insert'
-}
-
 function handleCursorUpdate(col: number, voice: VoiceIndex) {
   moveCursor(col, voice)
 }
 
 function handleSetNote(col: number, voice: VoiceIndex, char: string) {
   setNote(col, voice, char)
-}
-
-function handleClearNote(col: number, voice: VoiceIndex) {
-  clearNote(col, voice)
 }
 
 function handleInsertNote(col: number, voice: VoiceIndex, char: string) {
@@ -208,12 +198,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
           :cursor="cursor"
           :current-play-column="playColumn"
           :key-signature="config.keySignature"
-          :input-mode="inputMode"
           :playback-state="playbackState"
-          @update:input-mode="inputMode = $event"
           @update:cursor="handleCursorUpdate"
           @set-note="handleSetNote"
-          @clear-note="handleClearNote"
           @insert-note="handleInsertNote"
           @backspace-at="handleBackspaceAt"
           @delete-at="handleDeleteAt"
@@ -268,16 +255,6 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
           @click="openHelp"
         >
           ?
-        </button>
-        <button
-          v-show="playbackState === 'stopped'"
-          type="button"
-          class="mode-badge"
-          :class="{ overwrite: inputMode === 'overwrite' }"
-          title="按 Insert 键切换"
-          @click="toggleInputMode"
-        >
-          {{ inputMode === 'insert' ? 'INS' : 'OVR' }}
         </button>
       </div>
     </aside>
@@ -342,36 +319,5 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
 
 .help-btn:active {
   transform: translateY(1px);
-}
-
-.mode-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 8px;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: bold;
-  letter-spacing: 0.04em;
-  color: #9fc;
-  background: transparent;
-  border: 1px solid #9fc;
-  border-radius: 4px;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.mode-badge:hover {
-  background: rgba(153, 255, 204, 0.08);
-}
-
-.mode-badge.overwrite {
-  color: #fc9;
-  border-color: #fc9;
-}
-
-.mode-badge.overwrite:hover {
-  background: rgba(255, 204, 153, 0.08);
 }
 </style>

@@ -80,9 +80,6 @@ export interface CursorPosition {
   voice: VoiceIndex
 }
 
-/** 输入模式：insert（插入，输入时右推后续音符）/ overwrite（覆盖，直接替换） */
-export type InputMode = 'insert' | 'overwrite'
-
 /** 播放状态 */
 export type PlaybackState = 'stopped' | 'playing' | 'paused'
 
@@ -163,10 +160,10 @@ export const DEFAULT_BPM = 90
  * | G    | G大调 | G         |
  * | A    | A大调 | A         |
  */
-export type KeySignature = 'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'Bb' | 'Eb'
+export type KeySignature = 'C' | 'D' | 'F' | 'G' | 'A'
 
 /** 可选调号列表 */
-export const KEY_SIGNATURES: KeySignature[] = ['C', 'D', 'E', 'F', 'G', 'A', 'Bb', 'Eb']
+export const KEY_SIGNATURES: KeySignature[] = ['C', 'D', 'F', 'G', 'A']
 
 /** 默认调号 */
 export const DEFAULT_KEY_SIGNATURE: KeySignature = 'C'

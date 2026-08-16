@@ -72,9 +72,8 @@ onBeforeUnmount(() => {
               用键盘直接在当前高亮方格中写入简谱。<strong>每格为一个八分音符</strong>，写入后光标自动右移。
             </li>
             <li>
-              <span class="hl-label">输入模式</span>
-              <b>INS</b>（插入）：所输音符插入光标处，并将后续内容整体右移。
-              <b>OVR</b>（覆盖）：直接替换光标所在格，不移动后续内容。
+              <span class="hl-label">输入规则</span>
+              数字或 <b>-</b>（延音线）直接覆盖当前格；按<b>空格</b>插入休止符，后续内容右移一格。
             </li>
             <li>
               <span class="hl-label">调号 / 速度</span>
@@ -102,7 +101,7 @@ onBeforeUnmount(() => {
             <div class="kbd-item"><kbd>#</kbd> / <kbd>b</kbd><span>升号 / 降号，先按再输数字即生效，如 <code>#4</code> <code>b3</code></span></div>
             <div class="kbd-item"><kbd>,</kbd> / <kbd>.</kbd><span>低音（下加点）/ 高音（上加点），先按再输数字即生效，如 <code>,1</code> <code>.5</code></span></div>
             <div class="kbd-item"><kbd>-</kbd><span>延音线，延续前一个音符时值</span></div>
-            <div class="kbd-item"><kbd>空格</kbd><span>休止符（静音一拍）</span></div>
+            <div class="kbd-item"><kbd>空格</kbd><span>休止符（静音一拍），在当前格插入并右移后续内容</span></div>
           </div>
         </section>
 
@@ -120,12 +119,8 @@ onBeforeUnmount(() => {
                 <td>光标在列间左右移动</td>
               </tr>
               <tr>
-                <td class="k"><kbd>Insert</kbd></td>
-                <td>切换 INS（插入）/ OVR（覆盖）模式</td>
-              </tr>
-              <tr>
                 <td class="k"><kbd>Backspace</kbd></td>
-                <td>删除上一格，光标后退</td>
+                <td>删除上一格，后续内容左移补位，光标后退</td>
               </tr>
               <tr>
                 <td class="k"><kbd>Delete</kbd></td>

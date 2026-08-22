@@ -24,12 +24,12 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 2 * var(--width-outer-border));
-  width: 36em;
+  width: 42em;
   margin: var(--width-outer-border) auto;
   box-sizing: border-box;
-  font-size: 17px;
+  font-size: 15px;
   color: #fff;
-  border: 17px solid;
+  border: 15px solid;
   border-image: url(../assets/border.svg) 17;
   box-shadow: 0 0 0 2px #fff inset,
               0 0 0 2px #fff,

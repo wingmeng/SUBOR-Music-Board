@@ -54,7 +54,7 @@ defineExpose({ focusVoice })
 li {
   display: flex;
   flex-direction: column;
-  padding: 4px 0 8px;
+  padding-bottom: 5px;
   border-bottom: 2px solid #699;
 }
 
@@ -64,7 +64,7 @@ li:nth-child(4n + 4) {
   border-color: #c99;
 }
 
-.current :deep(input) {
+.current :deep(.tone) {
   box-shadow: inset 0 0 0 1px #9c3;
 }
 </style>

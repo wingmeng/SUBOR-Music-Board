@@ -172,9 +172,11 @@ defineExpose({ focus })
 <style scoped>
 .tone {
   position: relative;
-  display: inline-block;
-  width: 1em;
+  width: 1.2em;
+  height: 2em;
   line-height: 1.6;
+
+  &:focus-within {outline: 1px dotted;}
 }
 
 /* 升降号标记：在 input 左侧显示 # 或 b */
@@ -182,8 +184,9 @@ defineExpose({ focus })
   position: absolute;
   left: 0;
   top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 0.4em;
+  transform: translate(-50%, -1.5em);
+  font-size: 0.5em;
+  font-family: Arial;
   line-height: 1;
   pointer-events: none;
   color: #fff;
@@ -200,21 +203,19 @@ defineExpose({ focus })
 .tone.s1::before {
   content: '▪';
   top: 0;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -0.5em);
 }
 
 /* 低音标记：音符下方加点 */
 .tone.s-1::after {
   content: '▪';
   bottom: 0;
-  transform: translate(-50%, 50%);
+  transform: translateX(-50%);
 }
 
-input {
-  display: block;
-  width: auto;
-  min-width: 1em;
-  height: 1em;
+.tone > input {
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   text-align: center;
   font-size: 100%;
@@ -225,12 +226,10 @@ input {
   caret-color: transparent;
   overflow: hidden;
   field-sizing: content;
-
-  &:focus {outline: 1px dotted;}
 }
 
 /* 播放禁用状态 */
-.tone.disabled input {
+.tone.disabled > input {
   cursor: not-allowed;
 }
 

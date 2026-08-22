@@ -87,16 +87,16 @@ let repeatChar: string | null = null
 /** 长按重复定时器句柄 */
 let repeatTimer: ReturnType<typeof setTimeout> | null = null
 
-/** 行高估算值（em 单位，3个 NoteCell + padding + border） */
-const ROW_HEIGHT_ESTIMATE_EM = 5.5
-/** 行间距（px，对应 gap: 14px 5px 中的行 gap） */
-const ROW_GAP_PX = 14
-/** 列间距（px，对应 gap: 14px 5px 中的列 gap） */
+/** 行高估算值（em 单位，3个 NoteCell × 2em + padding-bottom 5px + border 2px） */
+const ROW_HEIGHT_ESTIMATE_EM = 6.5
+/** 行间距（px，对应 gap: 5px 中的行 gap） */
+const ROW_GAP_PX = 5
+/** 列间距（px，对应 gap: 5px 中的列 gap） */
 const COLUMN_GAP_PX = 5
 /** 网格上下内边距（px，对应 padding: 8px 0） */
 const GRID_PADDING_Y = 16
-/** 单列宽度（em，对应 NoteCell .tone width: 1em） */
-const COLUMN_WIDTH_EM = 1
+/** 单列宽度（em，对应 NoteCell .tone width: 1.2em） */
+const COLUMN_WIDTH_EM = 1.2
 
 const gridRef = ref<HTMLElement | null>(null)
 /** 每行实际列数（根据容器宽度动态计算） */
@@ -657,7 +657,7 @@ onBeforeUnmount(() => {
 .notation {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 5px;
+  gap: 5px;
   padding: 8px 0;
   margin: 0;
   list-style: none;

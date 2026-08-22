@@ -24,7 +24,11 @@ const emit = defineEmits<{
   'backspace-at': [col: number, voice: VoiceIndex]
   'delete-at': [col: number, voice: VoiceIndex]
   'play-note': [col: number, voice: VoiceIndex, char: string]
+  'seek': [col: number]
 }>()
+
+/** 程序性聚焦（方向键导航 / 输入推进）时抑制 seek，只有用户点击才移动恢复点 */
+let suppressSeekOnFocus = false
 
 function setNote(col: number, voice: VoiceIndex, char: string) {
   emit('set-note', col, voice, char)
@@ -163,10 +167,13 @@ const visibleColumns = computed(() => visibleRows.value * columnsPerRow.value)
 /** 截取可见范围内的乐谱列 */
 const visibleScore = computed(() => props.score.slice(0, visibleColumns.value))
 
-/** 聚焦到指定列的指定声部 */
+/** 聚焦到指定列的指定声部（程序性聚焦，不触发 seek） */
 function focusCell(col: number, voice: VoiceIndex) {
   if (col >= 0 && col < columnRefs.value.length) {
+    // HTMLElement.focus() 同步派发 focus 事件，标记在调用前后包裹即可
+    suppressSeekOnFocus = true
     columnRefs.value[col]?.focusVoice(voice)
+    suppressSeekOnFocus = false
   }
 }
 
@@ -353,6 +360,13 @@ function onCellFocus(voice: VoiceIndex, colIndex: number) {
   if (isPlaying.value) {
     return
   }
+
+  // 暂停态下用户点击网格 → 播放恢复点同步移到该列（编辑光标照常移动）
+  // 方向键导航 / 输入推进的程序性聚焦已被 suppressSeekOnFocus 抑制
+  if (props.playbackState === 'paused' && !suppressSeekOnFocus) {
+    emit('seek', colIndex)
+  }
+
   clearPending()
   moveCursor(colIndex, voice)
   nextTick(() => updateQuillPosition())

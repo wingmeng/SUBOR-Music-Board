@@ -158,12 +158,12 @@ export const DEFAULT_BPM = 90
  * | D    | D大调 | D         |
  * | F    | F大调 | F         |
  * | G    | G大调 | G         |
- * | A    | A大调 | A         |
+ * | ♭B   | ♭B大调 | B♭        |
  */
-export type KeySignature = 'C' | 'D' | 'F' | 'G' | 'A'
+export type KeySignature = 'C' | 'D' | 'F' | 'G' | '♭B'
 
 /** 可选调号列表 */
-export const KEY_SIGNATURES: KeySignature[] = ['C', 'D', 'F', 'G', 'A']
+export const KEY_SIGNATURES: KeySignature[] = ['C', 'D', 'F', 'G', '♭B']
 
 /** 默认调号 */
 export const DEFAULT_KEY_SIGNATURE: KeySignature = 'C'

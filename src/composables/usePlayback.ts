@@ -75,6 +75,17 @@ export function usePlayback(options: UsePlaybackOptions) {
     }
   }
 
+  /**
+   * 跳转播放位置（暂停态下移动恢复点）
+   *
+   * 同时更新 currentColumn，让网格的播放指示高亮立即跟随移动。
+   */
+  function seek(col: number) {
+    const clamped = Math.max(0, Math.min(col, score.length - 1))
+    sequencer.seekTo(clamped)
+    currentColumn.value = clamped
+  }
+
   function toggleLoop() {
     loop.value = !loop.value
     sequencer.setLoop(loop.value)
@@ -88,6 +99,7 @@ export function usePlayback(options: UsePlaybackOptions) {
     pause,
     stop,
     togglePlayPause,
+    seek,
     toggleLoop,
   }
 }

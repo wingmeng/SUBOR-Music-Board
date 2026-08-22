@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
             </li>
             <li>
               <span class="hl-label">调号 / 速度</span>
-              在底部控制栏选择调号 C D E F G A B♭ E♭ 与速度 BPM 60–135。
+              在底部控制栏选择调号 C D F G ♭B 与速度 BPM 60–135。
             </li>
             <li>
               <span class="hl-label">播放控制</span>
@@ -125,6 +125,10 @@ onBeforeUnmount(() => {
               <tr>
                 <td class="k"><kbd>Delete</kbd></td>
                 <td>清空当前格，光标不动</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>P</kbd></td>
+                <td>播放中暂停 / 暂停中恢复，停止时等同 PLAY；暂停时点击网格任意格可移动恢复位置</td>
               </tr>
               <tr>
                 <td class="k"><kbd>Ctrl</kbd> + <kbd>I</kbd></td>

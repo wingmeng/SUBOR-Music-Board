@@ -41,6 +41,8 @@ const {
   play,
   pause,
   stop,
+  togglePlayPause,
+  seek,
   toggleLoop,
 } = usePlayback({
   score,
@@ -139,10 +141,20 @@ const anyDialogOpen = computed(
   () => showExportDialog.value || showClearDialog.value || showHelpDialog.value,
 )
 
-/** 全局快捷键：Ctrl/Cmd+S 保存（导出乐谱），Ctrl/Cmd+I 打开（导入乐谱） */
+/** 全局快捷键：P 播放/暂停切换，Ctrl/Cmd+S 保存（导出乐谱），Ctrl/Cmd+I 打开（导入乐谱） */
 function onGlobalKeydown(e: KeyboardEvent) {
-  if (!(e.ctrlKey || e.metaKey)) return
   if (anyDialogOpen.value) return
+
+  // P 键：播放中暂停 / 暂停中恢复 / 停止时开始播放（等同 PLAY）
+  // 用 e.code 判断物理键位，不受中文输入法影响；带修饰键时不拦截（保留 Ctrl+P 打印）
+  if (e.code === 'KeyP' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.repeat || e.isComposing) return
+    e.preventDefault()
+    void togglePlayPause()
+    return
+  }
+
+  if (!(e.ctrlKey || e.metaKey)) return
   const key = e.key.toLowerCase()
   if (key === 's') {
     e.preventDefault()
@@ -204,6 +216,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
           @insert-note="handleInsertNote"
           @backspace-at="handleBackspaceAt"
           @delete-at="handleDeleteAt"
+          @seek="seek"
         />
       </template>
       <template #footer>

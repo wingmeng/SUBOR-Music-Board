@@ -1,5 +1,221 @@
-# Vue 3 + TypeScript + Vite
+# SUBOR Music Board — 小霸王音乐板
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+[English](./README_EN.md)
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+> 基于 **Vue 3 + TypeScript + Vite** 的 FC / 8-bit 风格三声部简谱音乐创作工具，浏览器端实时合成，无需任何音频素材。
+
+---
+
+## 目录
+
+1. [项目简介](#项目简介)
+2. [功能特性](#功能特性)
+3. [技术栈](#技术栈)
+4. [环境依赖与安装](#环境依赖与安装)
+5. [配置方法](#配置方法)
+6. [使用方式及示例](#使用方式及示例)
+7. [测试与构建说明](#测试与构建说明)
+8. [贡献指南](#贡献指南)
+9. [许可证](#许可证)
+
+---
+
+## 项目简介
+
+SUBOR Music Board（小霸王音乐板）是一款运行在浏览器端的复古风格音乐创作应用。它以「简谱」为核心记谱方式，提供 **主旋律、和弦律、低频** 三个独立声部的可视化网格编辑，并借助 **Web Audio API** 实时合成方波与三角波音色。所有声音均由代码生成，不依赖任何外部音频文件，即可完成创作、试听与导出。
+
+主要适用场景：
+
+- 音乐教育与简谱入门
+- 游戏 / 复古（FC、8-bit）风格 BGM 创作
+- 电子音乐片段与原型快速创作
+
+---
+
+## 功能特性
+
+- **三声部简谱编辑**：主旋律（方波）/ 和弦律（方波）/ 低频（三角波），每列对应一个节拍。
+- **实时音频合成**：基于 Web Audio API 的纯代码合成，无第三方音频库、无音频文件。
+- **响应式网格记谱**：键盘直接录入，网格根据容器尺寸自动换行与扩展可见列数。
+- **播放控制**：播放 / 暂停 / 停止，支持循环（`LOOP`）；播放中可实时变速、变调。
+- **可调速度（BPM）与调号**：6 档预设速度、5 个可调大调调号。
+- **导入 / 导出**：以 `.subor.json` 格式保存与加载乐谱，便于分享与复用。
+- **内置预设曲目**：铃儿响叮当、小星星、墓园舞曲等。
+- **FC 复古视觉**：NES.css 主题 + Press Start 2P 像素字体，并带有羽毛笔书写等装饰动效。
+
+---
+
+## 技术栈
+
+| 类别 | 选型 |
+|------|------|
+| 前端框架 | Vue 3（`<script setup>` 组合式 API） |
+| 开发语言 | TypeScript |
+| 构建工具 | Vite |
+| 音频 | Web Audio API（原生，无第三方音频库） |
+| 样式 / 字体 | `nes.css`、`@fontsource/press-start-2p` |
+
+---
+
+## 环境依赖与安装
+
+### 环境要求
+
+- **Node.js 20 或更高版本**（LTS 推荐）
+- 包管理器：**pnpm**（推荐，仓库已包含 `pnpm-lock.yaml`）；`npm` / `yarn` 亦可
+
+### 安装步骤
+
+```bash
+# 1. 克隆仓库
+git clone <repo-url>
+cd SUBOR-Music-Board
+
+# 2. 安装依赖（推荐 pnpm）
+pnpm install
+# 或：npm install / yarn install
+
+# 3. 启动开发服务器
+pnpm dev
+```
+
+启动后访问终端提示的地址（默认 `http://localhost:5173`，端口可能被占用而自动变化）。
+
+---
+
+## 配置方法
+
+本项目以「约定优于配置」为原则，无需额外配置文件。可调项集中在以下位置：
+
+1. **构建工具**：`vite.config.ts`（当前仅注册 Vue 插件，可按需扩展；`tsconfig*.json` 为 TypeScript 工程配置）。
+2. **运行时参数**（位于 `src/core/types.ts`）：
+   - `DEFAULT_COLUMNS`：乐谱默认列数（默认 `125`）。
+   - `BPM_LIST` / `DEFAULT_BPM`：速度档位与默认速度。
+   - `KEY_SIGNATURES` / `DEFAULT_KEY_SIGNATURE`：可选调号与默认调号。
+   - `EXPORT_FILE_EXT` / `EXPORT_MIME_TYPE`：导出文件扩展名与 MIME 类型。
+
+> ⚠️ 速度与调号仅支持预定义集合。新增档位或调号时，需同步修改 `types.ts`（常量）与 `note-map.ts`（MIDI 映射表），否则无法正确发声。
+
+---
+
+## 使用方式及示例
+
+### 界面布局
+
+- **左侧 OPEN / SAVE / CLEAR**：导入、导出、清空乐谱（仅在停止状态下可用）。
+- **中央网格**：三声部记谱区，当前光标格高亮，播放时显示进度。
+- **底部控制栏**：调号、速度（`SLOW` / `FAST` 步进）、播放控制（`PLAY` / `PAUSE` / `STOP` / `LOOP`）。
+- **右上角 `?`**：打开使用帮助。
+
+### 记谱语法
+
+三声部从上到下为：**主旋律（方波）**、**和弦律（方波）**、**低频（三角波）**。每列三个声部共享同一节拍，每格为一个八分音符。
+
+| 输入 | 含义 |
+|------|------|
+| `1`–`7` | 中音 do re mi fa sol la si |
+| `#` / `b` | 升号 / 降号，先按再输数字即生效，如 `#4`、`b3` |
+| `,` / `.` | 低音（下加点）/ 高音（上加点），先按再输数字即生效，如 `,1`、`.5` |
+| `-` | 延音线，延续前一个音符的时值 |
+| 空格 | 休止符（静音一拍），在当前格插入并右移后续内容 |
+
+组合示例：`#.1`（高音升 do）、`b,3`（低音降 mi）。
+
+### 输入规则
+
+- 数字或 `-`（延音线）**直接覆盖**当前格，输入后光标自动右移。
+- 空格（休止符）**插入**当前格，其后同声部内容右移一格。
+- 修饰符（`#` `b` `,` `.`）需先输入、再输入数字才会生效；修饰符可重复输入，后者覆盖前者。
+- 播放过程中网格编辑被禁用。
+
+### 快捷键（编辑模式可用）
+
+| 快捷键 | 功能 |
+|--------|------|
+| `↑` / `↓` | 在声部间上下移动光标 |
+| `←` / `→` | 在列间左右移动光标 |
+| `Backspace` | 删除上一格，后续内容左移补位，光标后退 |
+| `Delete` | 清空当前格，光标不动 |
+| `Ctrl` / `Cmd` + `I` | 导入乐谱（OPEN） |
+| `Ctrl` / `Cmd` + `S` | 导出乐谱（SAVE） |
+
+### 速度（BPM）与调号
+
+- **速度档位**（每格时长 = `30 / BPM` 秒）：
+
+  | 档位 | BPM | 每格时长 | 说明 |
+  |------|-----|----------|------|
+  | 0 | 60  | 0.500s | 最慢（慢练 / 摇篮曲） |
+  | 1 | 75  | 0.400s | 慢 |
+  | 2 | 90  | 0.333s | 适中（默认） |
+  | 3 | 105 | 0.286s | 适中偏快 |
+  | 4 | 120 | 0.250s | 快板 |
+  | 5 | 135 | 0.222s | 最快 |
+
+- **调号**：`C` / `D` / `F` / `G` / `A` 五个大调（界面以 `1=C` 形式显示主音），默认 `C` 大调。
+
+### 示例：导入预设曲目
+
+仓库 `presets/` 目录包含示例乐谱：
+
+- `jingle-bell.subor.json` — 铃儿响叮当 (Jingle Bells)
+- `twinkle-star.subor.json` — 小星星 (Twinkle Twinkle Little Star)
+- `coffin-dance.subor.json` — 墓园舞曲 (Coffin Dance)
+
+操作步骤：
+
+1. 点击左侧 **OPEN**。
+2. 选择 `presets/jingle-bell.subor.json`。
+3. 点击 **PLAY** 试听。
+
+### 文件格式（`.subor.json`）
+
+导出文件为 JSON，结构如下：
+
+```json
+{
+  "version": "1.0",
+  "title": "示例曲",
+  "description": "可选简介",
+  "bpm": 90,
+  "keySignature": "C",
+  "score": [
+    ["3", "1", "1"],
+    ["3", " ", " "],
+    ["3", "3", "5"]
+  ]
+}
+```
+
+- `score` 为列数组，每列是 `[主旋律, 和弦律, 低频]` 三个声部的记谱字符串。
+- 导入时会校验字段与取值范围，不合法文件会提示错误。
+
+---
+
+## 测试与构建说明
+
+### 常用脚本
+
+```bash
+pnpm dev       # 启动开发服务器（热更新）
+pnpm build     # 类型检查 + 生产构建（vue-tsc -b && vite build）
+pnpm preview   # 本地预览生产构建产物
+```
+
+### 构建说明
+
+- 构建流程包含 `vue-tsc` 类型检查，**类型错误会导致构建失败**，需先修复后再构建。
+- 产物输出至 `dist/`，为纯静态资源，可直接部署到任意静态服务器。
+- `public/` 与 `src/assets/` 中的资源由 Vite 自动处理与打包。
+
+---
+
+## 贡献指南
+
+欢迎参与项目改进！建议流程：
+
+1. Fork 本仓库并基于主分支创建特性分支。
+2. 遵循现有代码风格：Vue 3 `<script setup>` + TypeScript（开启严格类型）。
+3. 涉及记谱语法、声部、速度 / 调号等核心契约的修改，请同步更新 `src/core/types.ts` 与相关映射，并在 `wiki/`、`history-docs/` 补充记录。
+4. 提交信息建议采用 Conventional Commits 规范（如 `feat:`、`fix:`、`docs:`）。
+5. 提交 Pull Request，并描述改动动机与验证方式。

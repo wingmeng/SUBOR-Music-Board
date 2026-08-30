@@ -181,6 +181,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
           @click="handleImport"
         >
           OPEN
+          <div class="shortcut">Ctl + I</div>
         </button>
         <button
           type="button"
@@ -189,6 +190,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
           @click="handleExport"
         >
           SAVE
+          <div class="shortcut">Ctl + S</div>
         </button>
         <button
           type="button"

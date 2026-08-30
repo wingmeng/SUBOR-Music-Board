@@ -155,6 +155,8 @@ function onGlobalKeydown(e: KeyboardEvent) {
   }
 
   if (!(e.ctrlKey || e.metaKey)) return
+  // 播放中禁用导入/导出快捷键，与左侧 OPEN / SAVE 按钮禁用态保持一致
+  if (isPlaying.value) return
   const key = e.key.toLowerCase()
   if (key === 's') {
     e.preventDefault()
@@ -177,7 +179,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
         <button
           type="button"
           class="nes-btn is-small"
-          :disabled="playbackState !== 'stopped'"
+          :class="{'is-disabled': isPlaying}"
+          :disabled="isPlaying"
           @click="handleImport"
         >
           OPEN
@@ -186,7 +189,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
         <button
           type="button"
           class="nes-btn is-small is-primary"
-          :disabled="playbackState !== 'stopped'"
+          :class="{'is-disabled': isPlaying}"
+          :disabled="isPlaying"
           @click="handleExport"
         >
           SAVE
@@ -195,7 +199,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
         <button
           type="button"
           class="nes-btn is-small is-error"
-          :disabled="playbackState !== 'stopped'"
+          :class="{'is-disabled': isPlaying}"
+          :disabled="isPlaying"
           @click="handleClear"
         >
           CLEAR

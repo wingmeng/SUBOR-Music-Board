@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, toRef, ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, toRef, ref, computed, provide, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import Board from './components/Board.vue'
 import NotationGrid from './components/NotationGrid.vue'
 import ControlBar from './components/ControlBar.vue'
@@ -27,6 +27,8 @@ const {
   loadScore,
   resetScore,
   syncColumns,
+  undo,
+  redo,
 } = useNotation()
 
 const config = reactive({
@@ -63,6 +65,8 @@ const { exportScore, importScore } = useImportExport({
     if (cols != null) {
       syncColumns(cols)
     }
+    // 导入后初始化：光标与羽毛笔归位到左上角第一个格子
+    nextTick(() => notationGridRef.value?.focusHome())
   },
 })
 
@@ -140,7 +144,42 @@ function handleClearConfirm() {
   if (cols != null) {
     syncColumns(cols)
   }
+  // 清空后同样归位：光标与羽毛笔回到左上角第一个格子
+  nextTick(() => notationGridRef.value?.focusHome())
   showClearDialog.value = false
+}
+
+/**
+ * 撤销/重做后收尾：
+ * - 恢复的乐谱列数可能与当前可视容量不一致，按容量重新对齐（不足补齐铺满，含内容保留滚动）
+ * - 将 DOM 焦点与羽毛笔移到恢复后的光标位置
+ */
+function afterUndoRedoRestore() {
+  const cols = notationGridRef.value?.visibleColumns
+  if (cols != null) {
+    syncColumns(cols)
+  }
+  nextTick(() => {
+    notationGridRef.value?.focusCell(cursor.col, cursor.voice)
+  })
+}
+
+/** Ctrl/Cmd+Z 撤销上一步修改 */
+function handleUndo() {
+  notationGridRef.value?.cancelPendingInput()
+  if (!undo()) {
+    return
+  }
+  afterUndoRedoRestore()
+}
+
+/** Ctrl/Cmd+Shift+Z 或 Ctrl/Cmd+Y 重做 */
+function handleRedo() {
+  notationGridRef.value?.cancelPendingInput()
+  if (!redo()) {
+    return
+  }
+  afterUndoRedoRestore()
 }
 
 function openHelp() {
@@ -152,7 +191,8 @@ const anyDialogOpen = computed(
   () => showExportDialog.value || showClearDialog.value || showHelpDialog.value,
 )
 
-/** 全局快捷键：P 播放/暂停切换，Ctrl/Cmd+S 保存（导出乐谱），Ctrl/Cmd+I 打开（导入乐谱） */
+/** 全局快捷键：P 播放/暂停切换，Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y 重做，
+ *  Ctrl/Cmd+S 保存（导出乐谱），Ctrl/Cmd+I 打开（导入乐谱） */
 function onGlobalKeydown(e: KeyboardEvent) {
   if (anyDialogOpen.value) return
 
@@ -169,7 +209,17 @@ function onGlobalKeydown(e: KeyboardEvent) {
   // 播放中禁用导入/导出快捷键，与左侧 OPEN / SAVE 按钮禁用态保持一致
   if (isPlaying.value) return
   const key = e.key.toLowerCase()
-  if (key === 's') {
+  if (key === 'z') {
+    e.preventDefault()
+    if (e.shiftKey) {
+      handleRedo()
+    } else {
+      handleUndo()
+    }
+  } else if (key === 'y') {
+    e.preventDefault()
+    handleRedo()
+  } else if (key === 's') {
     e.preventDefault()
     handleExport()
   } else if (key === 'i') {
@@ -269,6 +319,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
           :y="quill.position.y"
           :animation="quill.animation.value"
           :docked="isPlaying"
+          :visible="quill.visible.value"
           @animation-end="onQuillAnimationEnd"
         />
         <InkBottle />

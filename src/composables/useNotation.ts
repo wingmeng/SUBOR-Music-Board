@@ -16,11 +16,74 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
   const score: Score = reactive(createEmptyScore(columns))
   const cursor: CursorPosition = reactive({ col: 0, voice: 0 })
 
+  /** 撤销/重做快照：一次内容修改前的完整乐谱 + 光标位置 */
+  interface Snapshot {
+    score: Score
+    cursor: CursorPosition
+  }
+
+  /** 撤销历史上限（超出上限时丢弃最旧快照） */
+  const MAX_UNDO_DEPTH = 100
+  const undoStack: Snapshot[] = []
+  const redoStack: Snapshot[] = []
+
+  /** 记录一次修改前的快照（深拷贝），并清空重做栈 */
+  function pushSnapshot() {
+    undoStack.push({
+      score: score.map((col) => [...col] as Column),
+      cursor: { col: cursor.col, voice: cursor.voice },
+    })
+    if (undoStack.length > MAX_UNDO_DEPTH) {
+      undoStack.shift()
+    }
+    redoStack.length = 0
+  }
+
+  /** 用快照覆盖当前乐谱与光标（撤销/重做共用） */
+  function restoreSnapshot(snap: Snapshot) {
+    score.length = 0
+    for (const col of snap.score) {
+      score.push([...col] as Column)
+    }
+    cursor.col = Math.min(snap.cursor.col, Math.max(0, score.length - 1))
+    cursor.voice = snap.cursor.voice
+  }
+
+  /** 撤销：恢复到上一次内容修改前的状态，返回是否成功 */
+  function undo(): boolean {
+    const snap = undoStack.pop()
+    if (!snap) {
+      return false
+    }
+    // 当前状态压入重做栈
+    redoStack.push({
+      score: score.map((col) => [...col] as Column),
+      cursor: { col: cursor.col, voice: cursor.voice },
+    })
+    restoreSnapshot(snap)
+    return true
+  }
+
+  /** 重做：恢复被撤销的修改，返回是否成功 */
+  function redo(): boolean {
+    const snap = redoStack.pop()
+    if (!snap) {
+      return false
+    }
+    undoStack.push({
+      score: score.map((col) => [...col] as Column),
+      cursor: { col: cursor.col, voice: cursor.voice },
+    })
+    restoreSnapshot(snap)
+    return true
+  }
+
   /** 设置某列某声部的音符（值已在输入层验证） */
   function setNote(col: number, voice: VoiceIndex, char: string) {
     if (col < 0) {
       return
     }
+    pushSnapshot()
     // 列超出当前长度时自动扩展乐谱（输入越过末尾会生成新列/新行，由滚动条承接）
     while (score.length <= col) {
       score.push(createEmptyColumn())
@@ -31,6 +94,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
   /** 清除某列某声部的音符（设为空格） */
   function clearNote(col: number, voice: VoiceIndex) {
     if (col >= 0 && col < score.length) {
+      pushSnapshot()
       score[col][voice] = ' '
     }
   }
@@ -43,6 +107,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     if (col < 0) {
       return
     }
+    pushSnapshot()
 
     while (score.length <= col) {
       score.push(createEmptyColumn())
@@ -64,6 +129,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
       return false
     }
 
+    pushSnapshot()
     const deleteCol = col - 1
 
     for (let i = deleteCol; i < score.length - 1; i++) {
@@ -95,6 +161,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
 
   /** 重置乐谱 */
   function resetScore() {
+    pushSnapshot()
     for (let i = 0; i < score.length; i++) {
       score[i] = createEmptyColumn()
     }
@@ -104,6 +171,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
 
   /** 加载乐谱数据 */
   function loadScore(newScore: Score) {
+    pushSnapshot()
     // 清空现有数据
     score.length = 0
 
@@ -168,5 +236,7 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     resetScore,
     loadScore,
     syncColumns,
+    undo,
+    redo,
   }
 }

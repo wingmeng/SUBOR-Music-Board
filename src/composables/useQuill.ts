@@ -4,8 +4,11 @@ export type QuillAnimation = 'idle' | 'writing' | 'dipInk'
 
 export interface QuillAPI {
   position: { x: number; y: number }
+  /** 动态模式下是否可见（焦点文本框滚出视口时隐藏） */
+  visible: Ref<boolean>
   animation: Ref<QuillAnimation>
   moveTo: (el: HTMLElement) => void
+  setVisible: (v: boolean) => void
   startWriting: () => void
   onAnimationEnd: () => void
   startDipInk: () => void
@@ -13,7 +16,13 @@ export interface QuillAPI {
 
 export function useQuill(): QuillAPI {
   const position = reactive({ x: 0, y: 0 })
+  const visible = ref(true)
   const animation = ref<QuillAnimation>('idle')
+
+  /** 设置动态模式下羽毛笔的可见性 */
+  function setVisible(v: boolean) {
+    visible.value = v
+  }
 
   /**
    * 水平偏移量：羽毛笔经 rotate(120deg) 旋转后，
@@ -55,8 +64,10 @@ export function useQuill(): QuillAPI {
 
   return {
     position,
+    visible,
     animation,
     moveTo,
+    setVisible,
     startWriting,
     startDipInk,
     onAnimationEnd,

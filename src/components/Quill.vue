@@ -7,15 +7,18 @@ const props = defineProps<{
   y: number
   animation: QuillAnimation
   docked?: boolean
+  /** 动态模式下是否可见（焦点文本框滚出滚动视口时隐藏） */
+  visible?: boolean
 }>()
 
 const emit = defineEmits<{
   animationEnd: []
 }>()
 
-/** 非 docked 模式下使用动态坐标 */
+/** 非 docked 模式下使用动态坐标；不可见时隐藏（随焦点文本框滚出视口） */
 const dynamicStyle = computed(() => {
   if (props.docked) return {}
+  if (props.visible === false) return { display: 'none' }
   return { left: `${props.x}px`, top: `${props.y}px` }
 })
 </script>

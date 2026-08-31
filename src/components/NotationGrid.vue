@@ -73,6 +73,8 @@ const inputQueue: { voice: VoiceIndex; char: string }[] = []
 let writingAnimationActive = false
 /** 动画期间是否发生了外部导航（方向键移动光标） */
 let cursorMovedDuringAnimation = false
+/** 输入是否已被取消（撤销/重做触发）：动画结束后不再落盘队列数据、不再推进光标 */
+let inputCancelled = false
 
 /** 方向键节流：长按时限制移动频率，避免焦点切换过快 */
 const ARROW_REPEAT_INTERVAL = 120
@@ -196,8 +198,60 @@ function updateQuillPosition() {
   const el = getActiveInput()
 
   if (el && el.tagName === 'INPUT') {
+    quill.setVisible(true)
+    quill.moveTo(el)
+  } else {
+    quill.setVisible(false)
+  }
+}
+
+/** 滚动同步的 rAF 句柄（0 = 空闲） */
+let quillScrollRaf = 0
+/** 滚动容器元素（.board-scroll），供 scroll 监听绑定/解绑 */
+let scrollBoxEl: HTMLElement | null = null
+
+/**
+ * 滚动时把羽毛笔重新吸附到当前焦点文本框：
+ * - 文本框仍在滚动视口内 → 更新位置（跟随文本框）
+ * - 文本框滚出视口 / 焦点不在网格 → 隐藏羽毛笔
+ * 播放中（docked）不处理，羽毛笔固定于墨水瓶。
+ */
+function syncQuillWithScroll() {
+  const el = getActiveInput()
+  if (!scrollBoxEl) {
+    return
+  }
+  if (!el || el.tagName !== 'INPUT') {
+    quill.setVisible(false)
+    return
+  }
+
+  const elRect = el.getBoundingClientRect()
+  const boxRect = scrollBoxEl.getBoundingClientRect()
+  const inView =
+    elRect.bottom > boxRect.top &&
+    elRect.top < boxRect.bottom &&
+    elRect.right > boxRect.left &&
+    elRect.left < boxRect.right
+
+  quill.setVisible(inView)
+  if (inView) {
     quill.moveTo(el)
   }
+}
+
+/** scroll 事件入口：rAF 节流，避免高频滚动导致过度重算 */
+function onScrollSyncQuill() {
+  if (isPlaying.value) {
+    return
+  }
+  if (quillScrollRaf !== 0) {
+    return
+  }
+  quillScrollRaf = requestAnimationFrame(() => {
+    quillScrollRaf = 0
+    syncQuillWithScroll()
+  })
 }
 
 /** 前进到下一格（向右，同声部）；越过数据末尾时由 moveCursor 自动扩展乐谱 */
@@ -271,6 +325,8 @@ async function processInput(voice: VoiceIndex, char: string) {
   // 在异步播放之前标记动画进行中，防止并发输入绕过队列
   if (char.trim() !== '') {
     writingAnimationActive = true
+    // 新输入启动动画：重置可能残留的"输入已取消"标志，保证动画结束后正常落盘与推进
+    inputCancelled = false
   }
 
   // 空格（休止符）与延音线 - 插入当前格并右移后续内容；音符直接覆盖当前格
@@ -298,6 +354,14 @@ async function processInput(voice: VoiceIndex, char: string) {
  * 这确保数据总在光标到达时已就绪，避免看到空单元格（"空格字符"现象）。
  */
 function handleQuillAnimationEnd() {
+  // 撤销/重做取消的输入：动画结束后丢弃队列，不落盘、不推进光标
+  if (inputCancelled) {
+    inputCancelled = false
+    writingAnimationActive = false
+    inputQueue.length = 0
+    return
+  }
+
   writingAnimationActive = false
 
   if (cursorMovedDuringAnimation) {
@@ -337,7 +401,44 @@ function handleQuillAnimationEnd() {
   focusCell(finalCol, props.cursor.voice)
 }
 
-defineExpose({ handleQuillAnimationEnd, visibleColumns })
+/**
+ * 归位到左上角第一个格子（初始化 / 导入 / 清空后调用）：
+ * 光标与羽毛笔一并回到 (0,0) 并显示，滚动容器同时回到顶部。
+ * 显式 moveCursor + nextTick 更新位置，避免"目标格已聚焦导致 focus 事件不触发"的边界。
+ */
+function focusHome() {
+  moveCursor(0, 0)
+  // 滚动容器滚回顶部，确保 (0,0) 在视口内、羽毛笔可见
+  if (scrollBoxEl) {
+    scrollBoxEl.scrollTop = 0
+    scrollBoxEl.scrollLeft = 0
+  }
+  focusCell(0, 0)
+  nextTick(updateQuillPosition)
+}
+
+/**
+ * 撤销/重做前调用：取消一切待处理的输入（长按重复、待决修饰符、动画队列），
+ * 防止旧输入在乐谱被恢复后继续落盘或推进光标。
+ * 无条件置 inputCancelled：即使此刻无活跃动画，也能拦截"动画结束事件迟到"的
+ * 残留推进；残留标志会在下一次输入启动动画时（processInput）自动复位。
+ */
+function cancelPendingInput() {
+  inputCancelled = true
+  clearNoteRepeat()
+  clearPending()
+  inputQueue.length = 0
+  writingAnimationActive = false
+  cursorMovedDuringAnimation = false
+}
+
+defineExpose({
+  handleQuillAnimationEnd,
+  visibleColumns,
+  focusHome,
+  focusCell,
+  cancelPendingInput,
+})
 
 /**
  * Backspace 键处理：删除前一个 cell，后续左移填补（与空格插入对称），光标后退
@@ -621,6 +722,9 @@ onMounted(() => {
   if (container) {
     resizeObserver = new ResizeObserver(debouncedCalculateLayout)
     resizeObserver.observe(container)
+    // 监听滚动：滚动时让羽毛笔跟随上次编辑的文本框（滚出视口则隐藏）
+    scrollBoxEl = container
+    container.addEventListener('scroll', onScrollSyncQuill, { passive: true })
   }
 })
 
@@ -630,6 +734,12 @@ onBeforeUnmount(() => {
   clearNoteRepeat()
   resizeObserver?.disconnect()
   resizeObserver = null
+  scrollBoxEl?.removeEventListener('scroll', onScrollSyncQuill)
+  scrollBoxEl = null
+  if (quillScrollRaf !== 0) {
+    cancelAnimationFrame(quillScrollRaf)
+    quillScrollRaf = 0
+  }
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer)
     debounceTimer = null

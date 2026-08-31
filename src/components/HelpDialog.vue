@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
               数字直接覆盖当前格；按<b>空格</b>插入休止符、<b>-</b>（延音线）插入延音，后续内容右移一格。
             </li>
             <li>
-              <span class="hl-label">调号 / 速度</span>
+              <span class="hl-label">调号/速度</span>
               在底部控制栏选择调号 C D F G ♭B 与速度 BPM 60–135。
             </li>
             <li>
@@ -98,8 +98,8 @@ onBeforeUnmount(() => {
           </p>
           <div class="kbd-grid">
             <div class="kbd-item"><kbd>1</kbd>–<kbd>7</kbd><span>唱名 do re mi fa sol la si（中音）</span></div>
-            <div class="kbd-item"><kbd>#</kbd> / <kbd>b</kbd><span>升号 / 降号，先按再输数字即生效，如 <code>#4</code> <code>b3</code></span></div>
-            <div class="kbd-item"><kbd>,</kbd> / <kbd>.</kbd><span>低音（下加点）/ 高音（上加点），先按再输数字即生效，如 <code>,1</code> <code>.5</code></span></div>
+            <div class="kbd-item"><kbd>#</kbd> / <kbd>b</kbd><span>升号/降号，先按再输数字即生效，如 <code>#4</code> <code>b3</code></span></div>
+            <div class="kbd-item"><kbd>,</kbd> / <kbd>.</kbd><span>低音/高音，先按再输数字即生效，如 <code>,1</code> <code>.5</code></span></div>
             <div class="kbd-item"><kbd>-</kbd><span>延音线，延续前一个音符时值，在当前格插入并右移后续内容</span></div>
             <div class="kbd-item"><kbd>空格</kbd><span>休止符（静音一拍），在当前格插入并右移后续内容</span></div>
           </div>
@@ -119,6 +119,10 @@ onBeforeUnmount(() => {
                 <td>光标在列间左右移动</td>
               </tr>
               <tr>
+                <td class="k"><kbd>P</kbd></td>
+                <td>播放中暂停/暂停中恢复，停止时等同 PLAY；暂停时点击网格任意格可移动播放位置</td>
+              </tr>
+              <tr>
                 <td class="k"><kbd>Backspace</kbd></td>
                 <td>删除上一格，后续内容左移补位，光标后退</td>
               </tr>
@@ -127,8 +131,12 @@ onBeforeUnmount(() => {
                 <td>清空当前格，光标不动</td>
               </tr>
               <tr>
-                <td class="k"><kbd>P</kbd></td>
-                <td>播放中暂停 / 暂停中恢复，停止时等同 PLAY；暂停时点击网格任意格可移动恢复位置</td>
+                <td class="k"><kbd>Ctrl</kbd> + <kbd>Z</kbd></td>
+                <td>撤销上一步修改（含覆盖/插入/删除/清空/导入）</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Ctrl</kbd> + <kbd>Y</kbd></td>
+                <td>重做被撤销的修改</td>
               </tr>
               <tr>
                 <td class="k"><kbd>Ctrl</kbd> + <kbd>I</kbd></td>

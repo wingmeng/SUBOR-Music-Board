@@ -1,11 +1,12 @@
+import type { Ref } from 'vue'
 import type { Score, KeySignature, ExportData, Column } from '../core/types'
 import { DEFAULT_COLUMNS, EXPORT_MIME_TYPE, KEY_SIGNATURES, BPM_LIST, DEFAULT_BPM, migrateNoteValue } from '../core/types'
 
 export interface UseImportExportOptions {
-  /** 当前速度 */
-  bpm: number
-  /** 当前调号 */
-  keySignature: KeySignature
+  /** 当前速度（响应式引用，导出时取最新值） */
+  bpm: Ref<number>
+  /** 当前调号（响应式引用，导出时取最新值） */
+  keySignature: Ref<KeySignature>
   /** 当前乐谱 */
   score: Score
   /** 导入回调 */
@@ -26,8 +27,8 @@ export function useImportExport(options: UseImportExportOptions) {
       version: '1.0',
       title,
       description: description || undefined,
-      bpm: options.bpm,
-      keySignature: options.keySignature,
+      bpm: options.bpm.value,
+      keySignature: options.keySignature.value,
       score: options.score,
     }
 

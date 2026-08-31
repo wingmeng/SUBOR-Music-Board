@@ -18,9 +18,14 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
 
   /** 设置某列某声部的音符（值已在输入层验证） */
   function setNote(col: number, voice: VoiceIndex, char: string) {
-    if (col >= 0 && col < score.length) {
-      score[col][voice] = char
+    if (col < 0) {
+      return
     }
+    // 列超出当前长度时自动扩展乐谱（输入越过末尾会生成新列/新行，由滚动条承接）
+    while (score.length <= col) {
+      score.push(createEmptyColumn())
+    }
+    score[col][voice] = char
   }
 
   /** 清除某列某声部的音符（设为空格） */
@@ -32,10 +37,15 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
 
   /**
    * 插入模式：在 col 处插入音符，col 及之后同声部音符右移一位，末位丢弃
+   * 若 col 超出当前长度，先扩展乐谱再写入（相当于在末尾追加）
    */
   function insertNoteAt(col: number, voice: VoiceIndex, char: string) {
-    if (col < 0 || col >= score.length) {
+    if (col < 0) {
       return
+    }
+
+    while (score.length <= col) {
+      score.push(createEmptyColumn())
     }
 
     for (let i = score.length - 1; i > col; i--) {
@@ -73,7 +83,11 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
 
   /** 移动光标 */
   function moveCursor(col: number, voice: VoiceIndex) {
-    if (col >= 0 && col < score.length) {
+    if (col >= 0) {
+      // 光标移到现有数据之外时自动扩展乐谱（输入推进越过末尾即生成新列/新行）
+      while (score.length <= col) {
+        score.push(createEmptyColumn())
+      }
       cursor.col = col
     }
     cursor.voice = Math.min(2, Math.max(0, voice)) as VoiceIndex
@@ -93,14 +107,12 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     // 清空现有数据
     score.length = 0
 
-    // 加载新数据（最多加载 DEFAULT_COLUMNS 列）
-    const loadLength = Math.min(newScore.length, DEFAULT_COLUMNS)
-    
-    for (let i = 0; i < loadLength; i++) {
+    // 完整加载新数据：不截断，保留超出默认列数的部分（由网格滚动承接）
+    for (let i = 0; i < newScore.length; i++) {
       score.push([...newScore[i]] as Column)
     }
 
-    // 如果导入数据不足 DEFAULT_COLUMNS 列，用空白列填充
+    // 如果导入数据不足 DEFAULT_COLUMNS 列，用空白列填充（保持面板初始铺满）
     while (score.length < DEFAULT_COLUMNS) {
       score.push(createEmptyColumn())
     }
@@ -111,13 +123,36 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
   }
 
   /**
-   * 确保乐谱数据至少有 minCols 列，不足时用空白列填充
-   * 用于网格可见列数增加时自动扩展数据
+   * 将乐谱列数与可视容量对齐（初始化 / 导入 / 清空 / 窗口变化时调用）：
+   * - score 不足容量 → 用空白列补齐，铺满可视区域（不产生滚动条）
+   * - score 超出容量且超出部分全为空白 → 裁掉空白尾部（不删除任何音符，
+   *   并保留光标所在列防止光标越界）
+   * - score 超出容量且含真实音符 → 保留全部列，由滚动条承接
    */
-  function ensureColumns(minCols: number) {
-    while (score.length < minCols) {
+  function syncColumns(capacity: number) {
+    if (capacity < 1) {
+      return
+    }
+
+    // 不足容量：补齐空白列
+    while (score.length < capacity) {
       score.push(createEmptyColumn())
     }
+    if (score.length <= capacity) {
+      return
+    }
+
+    // 超出容量：仅当尾部全部为空白时才可裁剪（避免误删音符）
+    for (let i = capacity; i < score.length; i++) {
+      const col = score[i]
+      if (col[0] !== ' ' || col[1] !== ' ' || col[2] !== ' ') {
+        return // 存在真实内容，保留全部
+      }
+    }
+
+    // 尾部全空：裁到容量，但至少保留光标所在列
+    const newLength = Math.min(score.length, Math.max(capacity, cursor.col + 1))
+    score.length = newLength
   }
 
   return {
@@ -132,6 +167,6 @@ export function useNotation(columns = DEFAULT_COLUMNS) {
     moveCursor,
     resetScore,
     loadScore,
-    ensureColumns,
+    syncColumns,
   }
 }

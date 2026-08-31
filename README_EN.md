@@ -136,6 +136,8 @@ Combination examples: `#.1` (high sharp do), `b,3` (low flat mi).
 | `←` / `→` | Move cursor between columns |
 | `Backspace` | Delete previous cell, shift left, move cursor back |
 | `Delete` | Clear current cell, cursor stays |
+| `Ctrl` / `Cmd` + `Z` | Undo last change (overwrite / insert / delete / clear / import) |
+| `Ctrl` / `Cmd` + `Shift` + `Z` or `Ctrl` / `Cmd` + `Y` | Redo the undone change |
 | `Ctrl` / `Cmd` + `I` | Import (OPEN) |
 | `Ctrl` / `Cmd` + `S` | Export (SAVE) |
 

@@ -40,6 +40,7 @@ SUBOR Music Board（小霸王音乐板）是基于 **Vue 3 + TypeScript + Vite**
 - 修饰符 `#` `b` `,` `.` 须先输入、再输入数字才生效；可重复输入，后者覆盖前者。
 - 调号仅 `C / D / F / G / ♭B` 五个大调：`types.ts` 的 `KEY_SIGNATURES` 与 `note-map.ts` 的 `KEY_NOTE_MAP` 必须保持一致。修改调号相关代码或文案前请先核对 `types.ts`。
 - 实时变速 / 变调在播放中可用，由 `sequencer` 的 `requestPlaybackRestart()` 实现：立即 `stopAll()` 丢弃所有声，120ms 防抖后从当前指示器列整体重排（详见 `history-docs/播放中实时调号变速改为丢弃重排.md`）。`music-engine.ts` 的 `stopFrom` 已无调用方，仅作保留工具。
+- **撤销 / 重做（2026-08-31 新增）**：所有内容修改入口（`setNote` / `clearNote` / `insertNoteAt` / `backspaceAt` / `resetScore` / `loadScore`）在修改前记录快照（深拷贝 score + 光标，栈深 100）；`moveCursor` 纯列扩展与 `syncColumns` 列对齐**不进历史**。快捷键 `Ctrl/Cmd+Z`（撤销）、`Ctrl/Cmd+Shift+Z` / `Ctrl/Cmd+Y`（重做）在 `App.vue` 的 `onGlobalKeydown` 处理，播放中与对话框打开时禁用。改动撤销相关代码请核对 `useNotation.ts` 与 `NotationGrid.vue` 的 `cancelPendingInput`（详见 `history-docs/撤销重做功能实现规范.md`）。
 
 ## 项目目录结构
 

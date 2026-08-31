@@ -243,6 +243,34 @@ Comp-->>App : 重置光标并填充列数
 章节来源
 - [useNotation.ts:15-116](file://src/composables/useNotation.ts#L15-L116)
 
+### 撤销与重做（undo / redo）
+
+#### undo(): boolean
+- 功能：恢复到上一次内容修改前的状态（乐谱 + 光标）
+- 返回：boolean，是否有可撤销的历史（无可撤销时返回 false，不产生任何变化）
+- 实现要点：
+  - 从 undoStack 弹出最近快照，将当前状态压入 redoStack，再恢复快照
+  - 快照 = 修改前完整乐谱深拷贝 + 光标位置
+  - 撤销后 App.vue 会调用 syncColumns 对齐列数并 focusCell 恢复焦点与羽毛笔
+
+#### redo(): boolean
+- 功能：恢复被撤销的修改（乐谱 + 光标）
+- 返回：boolean，是否有可重做的历史
+- 实现要点：从 redoStack 弹出快照，当前状态压回 undoStack，再恢复快照
+
+#### 快照记录机制
+- **记录时机**：每个内容修改入口（`setNote` / `clearNote` / `insertNoteAt` / `backspaceAt` / `resetScore` / `loadScore`）在**修改前**调用 `pushSnapshot()` 记录一次快照，并清空重做栈
+- **覆盖范围**：音符覆盖、空格/延音线插入、Backspace 删除、Delete 清空、CLEAR 清空、导入覆盖，全部可撤销
+- **栈上限**：`MAX_UNDO_DEPTH = 100`，超出时丢弃最旧快照
+- **不进入历史**：`moveCursor` 的纯列扩展、`syncColumns` 的列数对齐（由可视容量驱动）
+- **快捷键**：Ctrl/Cmd+Z 撤销；Ctrl/Cmd+Shift+Z 或 Ctrl/Cmd+Y 重做（App.vue `onGlobalKeydown`，播放中与对话框打开时禁用）
+- **边界防抖**：撤销前 `NotationGrid.cancelPendingInput()` 取消长按重复、待决修饰符与动画队列，`inputCancelled` 标志拦截迟到的动画回调，防止残留输入污染恢复后的乐谱
+
+章节来源
+- [useNotation.ts:19-79](file://src/composables/useNotation.ts#L19-L79)
+- [App.vue:handleUndo/handleRedo](file://src/App.vue)
+- [NotationGrid.vue:cancelPendingInput](file://src/components/NotationGrid.vue)
+
 ### 输入验证与UI协作
 - 输入验证：
   - 单字符验证：isValidNoteChar(char)

@@ -146,7 +146,8 @@ function calculateLayout() {
     (availableHeight + ROW_GAP_PX) / (rowHeight + ROW_GAP_PX)
   )
 
-  // 仅根据容器高度决定行数，确保不超出可视区域（避免不完整行和滚动条）
+  // 计算单屏可容纳的行数：仅用于乐谱数据补齐（不再限制渲染行数——
+  // 超出部分由 flex-wrap 自动换行生成新行，超出容器高度时由滚动条承接）
   visibleRows.value = Math.max(1, rowsFromHeight)
 }
 
@@ -161,19 +162,27 @@ function debouncedCalculateLayout() {
   }, 150)
 }
 
-/** 可见列数：行数 × 每行列数 */
+/** 可视容量（列）：单屏可容纳的列数 = 行数 × 每行列数，仅用于乐谱数据补齐（不再限制渲染） */
 const visibleColumns = computed(() => visibleRows.value * columnsPerRow.value)
-
-/** 截取可见范围内的乐谱列 */
-const visibleScore = computed(() => props.score.slice(0, visibleColumns.value))
 
 /** 聚焦到指定列的指定声部（程序性聚焦，不触发 seek） */
 function focusCell(col: number, voice: VoiceIndex) {
-  if (col >= 0 && col < columnRefs.value.length) {
+  if (col < 0) {
+    return
+  }
+
+  suppressSeekOnFocus = true
+  const doFocus = () => {
     // HTMLElement.focus() 同步派发 focus 事件，标记在调用前后包裹即可
-    suppressSeekOnFocus = true
     columnRefs.value[col]?.focusVoice(voice)
     suppressSeekOnFocus = false
+  }
+
+  if (col < columnRefs.value.length) {
+    doFocus()
+  } else {
+    // 乐谱数据刚扩展、目标列尚未渲染：等渲染完成后再聚焦（浏览器会自动滚动到可见区域）
+    nextTick(doFocus)
   }
 }
 
@@ -191,14 +200,12 @@ function updateQuillPosition() {
   }
 }
 
-/** 前进到下一格（向右，同声部） */
+/** 前进到下一格（向右，同声部）；越过数据末尾时由 moveCursor 自动扩展乐谱 */
 function advanceToNext() {
   const nextCol = props.cursor.col + 1
 
-  if (nextCol < props.score.length) {
-    moveCursor(nextCol, props.cursor.voice)
-    focusCell(nextCol, props.cursor.voice)
-  }
+  moveCursor(nextCol, props.cursor.voice)
+  focusCell(nextCol, props.cursor.voice)
 }
 
 /** 后退到上一格（向左，同声部） */
@@ -266,8 +273,8 @@ async function processInput(voice: VoiceIndex, char: string) {
     writingAnimationActive = true
   }
 
-  // 空格（休止符）插入当前格并右移后续内容；音符/延音线直接覆盖当前格
-  if (char === ' ') {
+  // 空格（休止符）与延音线 - 插入当前格并右移后续内容；音符直接覆盖当前格
+  if (char === ' ' || char === '-') {
     insertNoteAt(props.cursor.col, voice, char)
   } else {
     setNote(props.cursor.col, voice, char)
@@ -309,9 +316,9 @@ function handleQuillAnimationEnd() {
     const col = baseCol + 1 + i
     const { voice, char } = queued[i]
 
-    // 空格（休止符）插入并右移后续内容；音符/延音线覆盖
+    // 空格与延音线 - 插入并右移后续内容；音符覆盖
     // 注：每个输入光标固定前进 1 格，写入列不受此前插入的影响
-    if (char === ' ') {
+    if (char === ' ' || char === '-') {
       insertNoteAt(col, voice, char)
     } else {
       setNote(col, voice, char)
@@ -322,13 +329,12 @@ function handleQuillAnimationEnd() {
   queued.forEach(({ voice, char }) => playNote(voice, char))
 
   // 第三步：一次性推进光标（原始音符 1 格 + 队列 N 格）
+  // 越过数据末尾时由 moveCursor 自动扩展乐谱
   const steps = 1 + queued.length
   const finalCol = baseCol + steps
 
-  if (finalCol < props.score.length) {
-    moveCursor(finalCol, props.cursor.voice)
-    focusCell(finalCol, props.cursor.voice)
-  }
+  moveCursor(finalCol, props.cursor.voice)
+  focusCell(finalCol, props.cursor.voice)
 }
 
 defineExpose({ handleQuillAnimationEnd, visibleColumns })
@@ -634,7 +640,7 @@ onBeforeUnmount(() => {
 <template>
   <ul ref="gridRef" class="notation" :class="{ disabled: isPlaying }">
     <NoteColumn
-      v-for="(col, index) in visibleScore"
+      v-for="(col, index) in score"
       :key="index"
       ref="columnRefs"
       :data="col"

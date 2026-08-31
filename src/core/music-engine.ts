@@ -65,6 +65,27 @@ export class MusicEngine {
   }
 
   /**
+   * 等待 AudioContext 渲染时钟真正启动。
+   *
+   * AudioContext 首次创建（或从 suspended 恢复）后，currentTime 可能
+   * 冻结数百毫秒才开始推进（渲染管线冷启动）。若直接以冻结的 currentTime
+   * 作为调度基准，预调度的音符会比预期晚发声，造成声音滞后于进度指示器。
+   *
+   * @param timeoutMs 最长等待毫秒数（兜底，避免时钟永不启动时挂死）
+   * @returns 时钟是否已启动（false 表示超时仍未推进）
+   */
+  async waitForClockRunning(timeoutMs = 2000): Promise<boolean> {
+    if (!this.audioContext) {
+      return false
+    }
+    const start = performance.now()
+    while (this.audioContext.currentTime <= 0 && performance.now() - start < timeoutMs) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10))
+    }
+    return this.audioContext.currentTime > 0
+  }
+
+  /**
    * 立即播放音符（兼容旧 API：用于 NotationGrid 输入预览）
    */
   playNote(

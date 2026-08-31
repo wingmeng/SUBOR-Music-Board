@@ -39,14 +39,23 @@ export class Sequencer {
   /** 播放起始的 wall-clock 时间（ms），用于 UI 回调定位 */
   private playbackWallStart = 0
 
-  /** 上次 scheduleAllNotes 的基准 AudioContext 时间（用于 BPM 变速时的选择性停止） */
-  private lastScheduleBaseTime = 0
+  /** 播放中实时调号/变速后，重启播放的防抖定时器 */
+  private restartTimer: ReturnType<typeof setTimeout> | null = null
 
-  /** 上次 scheduleAllNotes 的起始列（用于 BPM 变速时的选择性停止） */
-  private lastScheduleStartCol = 0
+  /** 防抖延迟（ms）：等待“调整完成”后再从当前位置重启，避免连点/拖动时反复调度 */
+  private readonly restartDelay = 120
 
-  /** 正在重新调度中（防止快速连点导致竞争） */
-  private _rescheduling = false
+  /**
+   * 音频预调度提前量（秒）。
+   *
+   * scheduleAllNotes 以 baseTime = engine.currentTime + 该值 作为第一个音符的绝对时间，
+   * 因此 UI 侧的 playbackWallStart 也必须同步 +该值（毫秒）对齐，
+   * 否则播放开始时指示器会先于声音约 100ms 走动，造成音画不同步。
+   */
+  private readonly scheduleLookaheadSec = 0.1
+
+  /** UI 定时器当前已回调的列号（实例级，便于重启时重置） */
+  private lastUiColumn = -1
 
   setScore(score: Score): void {
     this.score = score
@@ -56,67 +65,90 @@ export class Sequencer {
     if (this.keySignature === key) return
     this.keySignature = key
 
-    // 播放中实时切换调号
-    if (this.state === 'playing' && !this._rescheduling) {
-      this._rescheduling = true
-
-      const interval = 60 / this.bpm
-      const elapsed = (performance.now() - this.playbackWallStart) / 1000
-      const currentCol = Math.min(
-        Math.floor(elapsed / interval),
-        this.score.length - 1
-      )
-
-      // 只停掉未来音符，当前列自然播完
-      const nextCol = currentCol + 1
-      const cutoffTime = this.lastScheduleBaseTime + (nextCol - this.lastScheduleStartCol) * interval
-      getMusicEngine().stopFrom(cutoffTime)
-
-      // 从下一列开始用新调号重新调度（时值不变，无需调 playbackWallStart）
-      if (nextCol < this.score.length) {
-        this.scheduleAllNotes(nextCol)
-        // 重调度后音频从 engine.currentTime + 0.1（≈100ms后）开始播放，
-        // 同步调整 playbackWallStart 使指示器也在 100ms 后到达 nextCol
-        this.playbackWallStart = performance.now() - (nextCol * interval * 1000) + 100
-      }
-
-      this._rescheduling = false
+    // 播放中实时切换调号：立即丢弃当前音，调整完成后从当前位置重启
+    if (this.state === 'playing') {
+      this.requestPlaybackRestart()
     }
   }
 
   setBpm(bpm: number): void {
     if (this.bpm === bpm) return
-    const prevBpm = this.bpm
-    this.bpm = bpm
 
-    // 播放中实时调整 BPM
-    if (this.state === 'playing' && !this._rescheduling) {
-      this._rescheduling = true
+    const wasPlaying = this.state === 'playing'
+    const prevInterval = this.getNoteInterval()
 
-      const oldInterval = 60 / prevBpm
+    if (wasPlaying) {
+      // 先按旧间隔定位当前指示器列，再按新间隔重映射 playbackWallStart，
+      // 使指示器在防抖/重启期间保持在原列（否则 SLOW 会后退、FAST 会快进：
+      // 墙钟已播秒数 / 新间隔 ≠ 指示器当前列）。
       const elapsed = (performance.now() - this.playbackWallStart) / 1000
-      const effectiveLength = this.getEffectiveLength()
-      const currentCol = Math.min(
-        Math.floor(elapsed / oldInterval),
-        effectiveLength - 1
+      const currentCol = Math.max(
+        0,
+        Math.min(Math.floor(elapsed / prevInterval), this.getEffectiveLength() - 1)
       )
-
-      // 只停掉从下一列开始的未来音符，当前列自然播放完，避免卡顿
-      const nextCol = currentCol + 1
-      const cutoffTime = this.lastScheduleBaseTime + (nextCol - this.lastScheduleStartCol) * oldInterval
-      getMusicEngine().stopFrom(cutoffTime)
-
-      // 从下一列开始用新 BPM 重新调度
-      if (nextCol < effectiveLength) {
-        const newInterval = 60 / this.bpm
-        // 重调度后音频从 engine.currentTime + 0.1（≈100ms后）开始播放，
-        // 设置 playbackWallStart 使指示器也在 100ms 后到达 nextCol
-        this.playbackWallStart = performance.now() - (nextCol * newInterval * 1000) + 100
-        this.scheduleAllNotes(nextCol)
-      }
-
-      this._rescheduling = false
+      this.bpm = bpm
+      this.playbackWallStart = performance.now() - currentCol * this.getNoteInterval() * 1000
+    } else {
+      this.bpm = bpm
     }
+
+    // 播放中实时调整速度：立即丢弃当前音，调整完成后从当前位置重启
+    if (wasPlaying) {
+      this.requestPlaybackRestart()
+    }
+  }
+
+  /**
+   * 请求在播放中重启播放（用于实时调号/变速）。
+   *
+   * - 立即 stopAll 丢弃当前所有声音，杜绝多版本叠加产生混响；
+   * - 用防抖等待“调整完成”（连续点击/拖动不再触发额外调度），
+   *   最终从指示器当前所在列用新调号/速度重新调度，保证音画重新同步。
+   */
+  private requestPlaybackRestart(): void {
+    // 立即丢弃当前正在播放/已调度的所有音
+    getMusicEngine().stopAll()
+
+    if (this.restartTimer !== null) {
+      clearTimeout(this.restartTimer)
+    }
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null
+      this.restartFromCurrentPosition()
+    }, this.restartDelay)
+  }
+
+  /**
+   * 从当前指示器所在列用当前调号/速度重新调度剩余音符。
+   *
+   * 取代旧的「保留当前列、stopFrom 截断未来音符」方案：旧方案在快速连点
+   * 时 cutoff 计算漂移，会留下相互重叠的振荡器（混响）并造成指示器与音频
+   * 的永久错位。现在每次都干净丢弃 + 从当前列整体重排，自纠正、无残留。
+   */
+  private restartFromCurrentPosition(): void {
+    if (this.state !== 'playing') return
+
+    const interval = this.getNoteInterval()
+    const effectiveLength = this.getEffectiveLength()
+    if (effectiveLength === 0) return
+
+    // 依据虚拟时间计算“当前播放列”（与 UI 定时器同一基准）
+    const elapsed = (performance.now() - this.playbackWallStart) / 1000
+    const currentCol = Math.max(
+      0,
+      Math.min(Math.floor(elapsed / interval), effectiveLength - 1)
+    )
+
+    // 再次确保干净（防抖期间可能已有新的调度进入）
+    getMusicEngine().stopAll()
+
+    // 用新调号/速度从当前列重新调度剩余音符
+    this.scheduleAllNotes(currentCol)
+
+    // 与 scheduleAllNotes（baseTime = engine.currentTime + 0.1）对齐：
+    // 指示器在约 100ms 后到达 currentCol，与该列音频同时发声，恢复音画同步
+    this.playbackWallStart = performance.now() + this.scheduleLookaheadSec * 1000 - currentCol * interval * 1000
+    this.lastUiColumn = Math.max(0, currentCol - 1)
   }
 
   onPlay(callback: PlayCallback): void {
@@ -154,6 +186,11 @@ export class Sequencer {
       await engine.init()
     }
 
+    // 首次播放：AudioContext 刚创建，currentTime 可能有一段启动冻结期
+    // （渲染管线冷启动，数百 ms 不推进）。等待时钟真正启动后再调度，
+    // 确保 baseTime 与 wall clock 基准对齐，避免首音滞后于指示器。
+    await engine.waitForClockRunning()
+
     // 从停止状态开始 → 从第 0 列播放
     if (this.state === 'stopped') {
       this.pausedColumn = 0
@@ -167,7 +204,7 @@ export class Sequencer {
     // 启动 UI 更新定时器
     // playbackWallStart 设为虚拟时间的 wall-clock 起点，
     // 使得 performance.now() - playbackWallStart = 已播放的秒数
-    this.playbackWallStart = performance.now() - (this.pausedColumn * this.getNoteInterval() * 1000)
+    this.playbackWallStart = performance.now() + this.scheduleLookaheadSec * 1000 - (this.pausedColumn * this.getNoteInterval() * 1000)
     this.startUiTimer()
   }
 
@@ -182,6 +219,12 @@ export class Sequencer {
 
     // 停止 UI 定时器
     this.stopUiTimer()
+
+    // 取消任何待触发的实时重启，避免暂停后误重启
+    if (this.restartTimer !== null) {
+      clearTimeout(this.restartTimer)
+      this.restartTimer = null
+    }
 
     // 记录当前播放位置
     const elapsed = (performance.now() - this.playbackWallStart) / 1000
@@ -201,6 +244,12 @@ export class Sequencer {
     this.state = 'stopped'
     this.pausedColumn = 0
     this.stopUiTimer()
+
+    // 取消任何待触发的实时重启，避免停止后误重启
+    if (this.restartTimer !== null) {
+      clearTimeout(this.restartTimer)
+      this.restartTimer = null
+    }
     getMusicEngine().stopAll()
   }
 
@@ -222,8 +271,8 @@ export class Sequencer {
   /**
    * 获取乐谱有效长度：最后一个至少有一个非空格音符的列的索引 + 1
    *
-   * 乐谱固定有 DEFAULT_COLUMNS(150) 列，但大部分可能是空白列。
-   * 有效长度确定播放器的实际播放终点，避免在空白列中浪费时间。
+   * 乐谱列数不固定（初始 DEFAULT_COLUMNS 列，随输入/导入动态扩展），
+   * 大部分可能是空白列。有效长度确定播放器的实际播放终点，避免在空白列中浪费时间。
    */
   private getEffectiveLength(): number {
     for (let i = this.score.length - 1; i >= 0; i--) {
@@ -253,10 +302,7 @@ export class Sequencer {
 
     const effectiveLength = this.getEffectiveLength()
 
-    // 记录本次调度信息，供 setBpm 中 stopFrom 计算截止时间
-    const baseTime = engine.currentTime + 0.1
-    this.lastScheduleBaseTime = baseTime
-    this.lastScheduleStartCol = startColumn
+    const baseTime = engine.currentTime + this.scheduleLookaheadSec
 
     // 逐声部独立扫描，合并延音线组
     for (let voice = 0; voice < 3; voice++) {
@@ -315,7 +361,7 @@ export class Sequencer {
    * 仅在列号发生变化时触发回调。
    */
   private startUiTimer(): void {
-    let lastColumn = -1
+    this.lastUiColumn = -1
     const effectiveLength = this.getEffectiveLength()
 
     // 无有效音符 → 立即停止
@@ -337,8 +383,8 @@ export class Sequencer {
         if (this.loop) {
           // 循环：重置播放位置，重新调度所有音符
           this.pausedColumn = 0
-          this.playbackWallStart = performance.now()
-          lastColumn = -1
+          this.playbackWallStart = performance.now() + this.scheduleLookaheadSec * 1000
+          this.lastUiColumn = -1
           this.scheduleAllNotes(0)
           // 立即触发第一列的回调，确保指示器回到开头
           this.onPlayCallback?.(0)
@@ -349,10 +395,10 @@ export class Sequencer {
         return
       }
 
-      // 列号变化时触发 UI 回调（限制在有效范围内）
-      const displayCol = Math.min(currentCol, effectiveLength - 1)
-      if (displayCol !== lastColumn) {
-        lastColumn = displayCol
+      // 列号变化时触发 UI 回调（限制在有效范围内，并防止越界到负列）
+      const displayCol = Math.max(0, Math.min(currentCol, effectiveLength - 1))
+      if (displayCol !== this.lastUiColumn) {
+        this.lastUiColumn = displayCol
         this.onPlayCallback?.(displayCol)
       }
     }, 50)

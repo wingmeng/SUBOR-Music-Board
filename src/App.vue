@@ -26,7 +26,7 @@ const {
   moveCursor,
   loadScore,
   resetScore,
-  ensureColumns,
+  syncColumns,
 } = useNotation()
 
 const config = reactive({
@@ -51,13 +51,18 @@ const {
 })
 
 const { exportScore, importScore } = useImportExport({
-  bpm: config.speed,
-  keySignature: config.keySignature,
+  bpm: toRef(config, 'speed'),
+  keySignature: toRef(config, 'keySignature'),
   score: score as Score,
   onImport: (data) => {
     config.speed = data.bpm
     config.keySignature = data.keySignature
     loadScore(data.score)
+    // 导入后按当前可视容量对齐列数：短乐谱补齐铺满，长乐谱保留全部（滚动）
+    const cols = notationGridRef.value?.visibleColumns
+    if (cols != null) {
+      syncColumns(cols)
+    }
   },
 })
 
@@ -72,12 +77,13 @@ const notationGridRef = ref<InstanceType<typeof NotationGrid>>()
 
 const isPlaying = computed(() => playbackState.value === 'playing')
 
-/** 当网格可见列数增加时，自动扩展乐谱数据以填充更多行 */
+/** 可视容量变化（初始化 / 窗口缩放）时，将乐谱列数对齐到容量：
+ *  不足补齐铺满（不产生滚动条），超出且含真实内容则保留全部（滚动） */
 watch(
   () => notationGridRef.value?.visibleColumns,
   (cols) => {
-    if (cols != null && cols > score.length) {
-      ensureColumns(cols)
+    if (cols != null) {
+      syncColumns(cols)
     }
   },
 )
@@ -129,6 +135,11 @@ function handleClear() {
 function handleClearConfirm() {
   stop()
   resetScore()
+  // 清空后按当前可视容量对齐列数，恢复"初始不产生滚动条"的干净板面
+  const cols = notationGridRef.value?.visibleColumns
+  if (cols != null) {
+    syncColumns(cols)
+  }
   showClearDialog.value = false
 }
 

@@ -411,14 +411,14 @@ Sequencer --> MusicEngine
 ### 预调度优化
 
 1. **一次性调度**：所有音符在播放开始时一次性调度，避免运行时计算开销
-2. **智能停止**：BPM调整时只停止未来的音符，保持当前播放的连续性
+2. **智能停止**：BPM/调号调整时立即 stopAll 丢弃所有声，防抖后从当前指示器列整体重排，杜绝叠加混响
 3. **内存管理**：及时清理停止的振荡器，避免内存泄漏
 
-### 实时调整策略
+### 实时调整策略（2026-08-30 改）
 
-1. **渐进式停止**：使用stopFrom方法选择性停止音符，避免卡顿
-2. **时间基准**：维护lastScheduleBaseTime确保BPM调整的准确性
-3. **竞争保护**：使用_rescheduling标志防止快速操作导致的竞争条件
+1. **丢弃重排**：播放中变更时 stopAll 立即丢弃所有声，120ms 防抖（restartTimer）后从当前指示器列整体重排，避免卡顿与混响
+2. **时间基准**：restartFromCurrentPosition 重置 playbackWallStart 与调度基准对齐（约 100ms），保证指示器与音频同步
+3. **防抖保护**：120ms 防抖合并快速连点/拖动；防抖定时器在 pause()/stop() 中清除
 
 ### UI响应优化
 
@@ -443,14 +443,14 @@ Sequencer --> MusicEngine
 
 #### BPM调整卡顿
 
-**症状**：调整BPM时出现音频中断
+**症状**：调整BPM时出现音频中断、混响叠加或指示器错位
 **可能原因**：
-1. 快速连续调整BPM
-2. _rescheduling标志未正确重置
+1. 播放中变更未走 requestPlaybackRestart（stopAll + 防抖重启）
+2. 防抖定时器未在暂停/停止时清除，或 playbackWallStart 与调度基准未对齐
 
 **解决方法**：
-1. 避免在BPM调整过程中频繁操作
-2. 确保_brescheduling标志在调整完成后重置
+1. 确认 setBpm 命中 playing 时调用 requestPlaybackRestart
+2. 检查 restartTimer 清理与 restartFromCurrentPosition 后的基准对齐（约 100ms）
 
 #### 循环播放异常
 

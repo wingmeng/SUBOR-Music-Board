@@ -36,7 +36,7 @@ Typical use cases:
 
 - Three-voice numbered-notation editing (lead / chord / bass, square / square / triangle waves), each column mapping to one beat.
 - Real-time, code-only audio synthesis via Web Audio API (no third-party audio libs).
-- A responsive grid editor with direct keyboard input that auto-wraps and expands columns to fit the viewport.
+- A responsive grid editor with direct keyboard input that auto-wraps; scores longer than the visible area automatically grow into new rows and are browsable via a scrollbar.
 - Playback controls with play / pause / stop and loop, plus live tempo and key changes during playback.
 - Six preset tempo steps and five selectable major keys.
 - Import / export in the `.subor.json` format for sharing and reuse.
@@ -89,7 +89,7 @@ This project follows "convention over configuration" and needs no extra config f
 
 1. **Build tooling**: `vite.config.ts` (currently registers only the Vue plugin; extend as needed). `tsconfig*.json` hold the TypeScript project config.
 2. **Runtime parameters** (in `src/core/types.ts`):
-   - `DEFAULT_COLUMNS`: default number of score columns (default `125`).
+   - `DEFAULT_COLUMNS`: initial column-count baseline (default `125`). The actual initial column count is aligned to the viewport capacity that fits without a scrollbar (padding up when short, trimming blank tails); the score then grows dynamically on input or import and is browsed via scrollbar instead of being truncated.
    - `BPM_LIST` / `DEFAULT_BPM`: tempo steps and default tempo.
    - `KEY_SIGNATURES` / `DEFAULT_KEY_SIGNATURE`: selectable and default key signatures.
    - `EXPORT_FILE_EXT` / `EXPORT_MIME_TYPE`: export file extension and MIME type.
@@ -102,14 +102,14 @@ This project follows "convention over configuration" and needs no extra config f
 
 ### Layout
 
-- Left panel — OPEN / SAVE / CLEAR for import, export, and clear (available only when stopped).
+- Left panel — OPEN / SAVE / CLEAR for import, export, and clear (disabled only while playing; available when paused or stopped).
 - Center — the three-voice notation grid; the active cursor cell is highlighted and playback progress is shown.
 - Bottom control bar — key signature, tempo (`SLOW` / `FAST` stepper), and playback controls (`PLAY` / `PAUSE` / `STOP` / `LOOP`).
 - Top-right `?` opens the help dialog.
 
 ### Notation Syntax
 
-The three voices, top to bottom, are: **lead (square)**, **chord (square)**, **bass (triangle)**. Each column's three voices share one beat, and each cell is one eighth note.
+The three voices, top to bottom, are: **lead (square)**, **chord (square)**, **bass (triangle)**. Each column's three voices share one beat. Notation uses a simplified model: one note equals one character (cell), with duration changes made via the tie `-` — no music-theory conversion needed; BPM controls the overall tempo.
 
 | Input | Meaning |
 |-------|---------|

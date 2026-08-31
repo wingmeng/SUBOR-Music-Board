@@ -175,7 +175,7 @@ export function useNotation(columns?: number): {
   moveCursor: (col: number, voice: VoiceIndex) => void
   resetScore: () => void
   loadScore: (newScore: Score) => void
-  ensureColumns: (minCols: number) => void
+  syncColumns: (capacity: number) => void
 }
 ```
 
@@ -229,13 +229,13 @@ export function useNotation(columns?: number): {
 - **功能**：加载新的乐谱数据
 - **参数**：`newScore: Score` - 新的乐谱数据
 - **返回值**：无
-- **行为特点**：最多加载默认列数，不足部分用空白列填充
+- **行为特点**：完整加载不截断，不足默认列数时用空白列填充
 
-#### ensureColumns方法
-- **功能**：确保乐谱至少拥有指定列数，不足部分用空白列补齐
-- **参数**：`minCols: number` - 最小列数
+#### syncColumns方法
+- **功能**：将乐谱列数对齐到可视容量
+- **参数**：`capacity: number` - 当前可视容量（列数）
 - **返回值**：无
-- **使用场景**：扩展乐谱长度
+- **行为特点**：不足补齐铺满（不产生滚动条）；空白尾部裁掉；含真实音符则保留全部（滚动）
 
 **章节来源**
 - [useNotation.ts:15-116](file://src/composables/useNotation.ts#L15-L116)

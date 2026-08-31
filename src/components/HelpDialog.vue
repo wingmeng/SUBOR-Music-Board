@@ -69,11 +69,11 @@ onBeforeUnmount(() => {
           <ul class="help-list">
             <li>
               <span class="hl-label">记谱输入</span>
-              用键盘直接在当前高亮方格中写入简谱。<strong>每格为一个八分音符</strong>，写入后光标自动右移。
+              用键盘直接在当前高亮方格中写入简谱，一个音占一格，写入后光标自动右移。
             </li>
             <li>
               <span class="hl-label">输入规则</span>
-              数字或 <b>-</b>（延音线）直接覆盖当前格；按<b>空格</b>插入休止符，后续内容右移一格。
+              数字直接覆盖当前格；按<b>空格</b>插入休止符、<b>-</b>（延音线）插入延音，后续内容右移一格。
             </li>
             <li>
               <span class="hl-label">调号 / 速度</span>
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
             <div class="kbd-item"><kbd>1</kbd>–<kbd>7</kbd><span>唱名 do re mi fa sol la si（中音）</span></div>
             <div class="kbd-item"><kbd>#</kbd> / <kbd>b</kbd><span>升号 / 降号，先按再输数字即生效，如 <code>#4</code> <code>b3</code></span></div>
             <div class="kbd-item"><kbd>,</kbd> / <kbd>.</kbd><span>低音（下加点）/ 高音（上加点），先按再输数字即生效，如 <code>,1</code> <code>.5</code></span></div>
-            <div class="kbd-item"><kbd>-</kbd><span>延音线，延续前一个音符时值</span></div>
+            <div class="kbd-item"><kbd>-</kbd><span>延音线，延续前一个音符时值，在当前格插入并右移后续内容</span></div>
             <div class="kbd-item"><kbd>空格</kbd><span>休止符（静音一拍），在当前格插入并右移后续内容</span></div>
           </div>
         </section>

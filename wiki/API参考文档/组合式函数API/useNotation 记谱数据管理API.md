@@ -91,7 +91,7 @@ IE --> T
   - moveCursor(col, voice)
   - resetScore()
   - loadScore(newScore)
-  - ensureColumns(minCols)
+  - syncColumns(capacity)
 
 章节来源
 - [useNotation.ts:15-116](file://src/composables/useNotation.ts#L15-L116)
@@ -217,24 +217,28 @@ Comp-->>App : 重置光标并填充列数
 - [useNotation.ts:73-80](file://src/composables/useNotation.ts#L73-L80)
 
 #### loadScore(newScore)
-- 功能：加载新的乐谱数据，限制列数为默认值
+- 功能：加载新的乐谱数据，完整加载不截断
 - 参数：newScore: Score
 - 返回：无
 - 实现要点：
   - 清空现有数据
-  - 从新数据中最多取 DEFAULT_COLUMNS 列
-  - 不足部分用空白列补齐
+  - 完整加载新数据，不截断（保留超出默认列数的部分）
+  - 不足部分用空白列补齐到 DEFAULT_COLUMNS
   - 重置光标到起点
 - 使用场景：导入乐谱后更新界面
 
 章节来源
 - [useNotation.ts:82-101](file://src/composables/useNotation.ts#L82-L101)
 
-#### ensureColumns(minCols)
-- 功能：确保乐谱至少拥有指定列数，不足部分用空白列补齐
-- 参数：minCols: number，最小列数
+#### syncColumns(capacity)
+- 功能：将乐谱列数对齐到可视容量（初始化 / 导入 / 清空 / 窗口变化时调用）
+- 参数：capacity: number，当前可视容量（列数）
 - 返回：无
-- 使用场景：扩展乐谱长度
+- 实现要点：
+  - score 不足容量 → 补齐空白列，铺满可视区域（不产生滚动条）
+  - score 超出容量且超出部分全为空白 → 裁掉空白尾部（不删除音符，保留光标所在列）
+  - score 超出容量且含真实音符 → 保留全部列，由滚动条承接
+- 使用场景：保持板面初始不产生滚动条，仅当乐谱超出现有行时才扩展并滚动
 
 章节来源
 - [useNotation.ts:15-116](file://src/composables/useNotation.ts#L15-L116)
@@ -307,7 +311,7 @@ class useNotation {
 +moveCursor()
 +resetScore()
 +loadScore()
-+ensureColumns()
++syncColumns()
 }
 useNotation --> Score : "管理"
 useNotation --> CursorPosition : "管理"
@@ -376,7 +380,7 @@ useNotation 提供了简洁而强大的记谱数据管理能力，结合严格�
 - moveCursor(col, voice): 移动光标
 - resetScore(): 重置乐谱
 - loadScore(newScore): 加载乐谱
-- ensureColumns(minCols): 确保最小列数
+- syncColumns(capacity): 对齐可视容量（补齐 / 裁空白尾 / 保留内容）
 
 章节来源
 - [useNotation.ts:19-101](file://src/composables/useNotation.ts#L19-L101)

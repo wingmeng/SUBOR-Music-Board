@@ -144,8 +144,8 @@ App->>App : onImport 回调更新配置与乐谱
     - deleteAt(col: number, voice: VoiceIndex)：删除指定列声部（不触发位移）
     - moveCursor(col: number, voice: VoiceIndex)：移动光标至指定位置
     - resetScore()：清空全部列并重置光标
-    - loadScore(newScore: Score)：加载新乐谱，自动补齐默认列数并重置光标
-    - ensureColumns(minCols: number)：确保乐谱至少拥有指定列数，不足部分用空白列补齐
+    - loadScore(newScore: Score)：加载新乐谱，完整加载不截断、不足补齐默认列数并重置光标
+    - syncColumns(capacity: number)：将列数对齐到可视容量（不足补齐铺满、空白尾部裁掉、含内容则保留全部）
 
 - 参数与返回值
   - setNote/clearNote/deleteAt：无返回值
@@ -190,7 +190,7 @@ class UseNotation {
 +moveCursor(col, voice) void
 +resetScore() void
 +loadScore(newScore) void
-+ensureColumns(minCols) void
++syncColumns(capacity) void
 }
 ```
 
@@ -397,7 +397,7 @@ ED["ExportDialog.vue"] --> UIE
   - usePlayback 通过 watch 监听 BPM 与调号，按需触发序列器更新
 - 播放调度
   - sequencer 采用一次性预调度所有音符的策略，降低UI轮询频率与CPU占用
-  - 实时切换 BPM/调号时，仅停止未来音符并从下一列重新调度，避免卡顿
+  - 实时切换 BPM/调号时，走 requestPlaybackRestart（stopAll 丢弃 + 120ms 防抖 + 从当前指示器列整体重排），避免卡顿与混响
 - 导入导出
   - 导出使用 Blob 与 URL.createObjectURL，完成后及时释放内存
   - 导入采用异步读取与解析，避免阻塞主线程
@@ -438,7 +438,7 @@ ED["ExportDialog.vue"] --> UIE
   - PlaybackState：'stopped' | 'playing' | 'paused'
   - ExportData：包含版本、标题、简介、BPM、调号与乐谱
 - 常量
-  - DEFAULT_COLUMNS：默认列数
+  - DEFAULT_COLUMNS：初始列数（默认 125，可动态扩展）
   - BPM_LIST：允许的BPM列表
   - KEY_SIGNATURES：允许的调号列表
   - EXPORT_MIME_TYPE：导出文件MIME类型

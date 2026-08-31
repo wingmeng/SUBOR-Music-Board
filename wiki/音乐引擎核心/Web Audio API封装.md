@@ -343,7 +343,7 @@ end
 Sequencer->>UI : 启动UI定时器
 loop 播放循环
 Sequencer->>UI : 更新播放位置
-Sequencer->>Engine : stopFrom(cutoffTime)BPM变更时
+Sequencer->>Engine : stopAll()（BPM/调号变更时丢弃所有声，防抖后从当前列重排）
 end
 ```
 

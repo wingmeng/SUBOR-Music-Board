@@ -170,7 +170,7 @@ STOP_PLAY --> END_TICK
 - performance.now()：高精度单调时间源，单位毫秒，用于计算相对时间差
 - playbackWallStart：播放起始的wall-clock时间戳，通过play()时的计算设置，使“performance.now() - playbackWallStart”等于已播放秒数
 - getCurrentIndex()：在playing状态下，使用相同公式计算当前列号，用于外部查询播放位置
-- noteInterval：每列时间间隔（秒），由BPM推导，每列=八分音符，间隔=60/(BPM×2)=30/BPM
+- noteInterval：每列时间间隔（秒），由BPM推导，每格时长 = 30/BPM（BPM 为速度档位）
 
 ```mermaid
 flowchart TD

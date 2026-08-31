@@ -87,7 +87,7 @@ I --> M["类型定义<br/>src/core/types.ts"]
   - 支持立即播放与预调度模式，避免 UI 与音频时间不同步
 - 序列器（Sequencer）
   - 预调度所有剩余音符，按 BPM 计算列间隔；支持暂停/恢复/停止/循环
-  - 实时调整 BPM/调号时，仅停止未来音符，避免卡顿
+  - 实时调整 BPM/调号时，stopAll 立即丢弃所有声，120ms 防抖后从当前指示器列整体重排
 - 播放组合式函数（usePlayback）
   - 将播放状态、当前列、循环等与 UI 绑定，监听 BPM/调号变化并同步给序列器
 - 记谱组合式函数（useNotation）
@@ -181,7 +181,7 @@ MusicEngine --> GainNode : "增益包络"
 - 关键职责
   - 计算列间隔与音符时长，预调度所有剩余音符
   - 管理播放状态、UI 定时器、循环与完成回调
-  - 实时调整 BPM/调号时，仅停止未来音符并从下一列重新调度
+  - 实时调整 BPM/调号时，走 requestPlaybackRestart（stopAll 丢弃 + 120ms 防抖 + 从当前指示器列整体重排）
 - 重要行为
   - scheduleAllNotes：按基准时间与列间距创建音符
   - startUiTimer：约 50ms 轮询当前列，触发 onPlay 回调
@@ -285,8 +285,8 @@ T --> TS["tsconfig.*.json"]
   - 通过基准时间与列间距计算绝对播放时间，提升精度
 - 定时器开销
   - UI 定时器约 50ms 轮询，兼顾流畅与能耗
-- 选择性停止
-  - BPM/调号变更时仅停止未来音符，保留当前列自然结束，避免卡顿
+- 实时变速/变调的丢弃重排
+  - BPM/调号变更时 stopAll 立即丢弃所有声，120ms 防抖后从当前指示器列整体重排，杜绝叠加混响并保持音画同步
 - 资源释放
   - 停止/销毁时清理定时器、断开连接、关闭 AudioContext，防止内存泄漏
 
@@ -346,14 +346,15 @@ T --> TS["tsconfig.*.json"]
 - [src/core/sequencer.ts:271-313](file://src/core/sequencer.ts#L271-L313)
 - [src/core/sequencer.ts:223-232](file://src/core/sequencer.ts#L223-L232)
 
-4) 症状：BPM 或调号变更后音符错乱
+4) 症状：BPM 或调号变更后音符错乱（混响叠加 / 指示器不同步）
 - 可能原因
-  - 未选择性停止未来音符，导致新旧节奏混合
+  - 播放中变更未走「stopAll 丢弃 + 防抖重启」，残留旧 stopFrom 截断逻辑导致新旧节奏混合
 - 排查步骤
-  - 检查 stopFrom 的截止时间计算
-  - 确认从下一列开始重新调度
+  - 确认 setBpm/setKeySignature 命中 playing 时调用 requestPlaybackRestart（立即 stopAll）
+  - 检查 restartFromCurrentPosition 后 playbackWallStart 与调度基准对齐（约 100ms）
+  - 确认防抖定时器在 pause()/stop() 中被清除
 - 修复建议
-  - 严格遵循“停止未来音符 → 重新调度”的流程
+  - 严格遵循「stopAll 丢弃所有声 → 120ms 防抖 → 从当前指示器列整体重排」的流程
 
 章节来源
 - [src/core/sequencer.ts:84-115](file://src/core/sequencer.ts#L84-L115)

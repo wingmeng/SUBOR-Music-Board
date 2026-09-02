@@ -99,6 +99,8 @@ const COLUMN_GAP_PX = 5
 const GRID_PADDING_Y = 16
 /** 单列宽度（em，对应 NoteCell .tone width: 1.2em） */
 const COLUMN_WIDTH_EM = 1.2
+/** 播放跟随滚动的提前量（行）：播放头行贴底时额外露出 N 行，避免总在最底边阅读 */
+const PLAY_SCROLL_LOOKAHEAD_ROWS = 1
 
 const gridRef = ref<HTMLElement | null>(null)
 /** 每行实际列数（根据容器宽度动态计算） */
@@ -252,6 +254,58 @@ function onScrollSyncQuill() {
     quillScrollRaf = 0
     syncQuillWithScroll()
   })
+}
+
+/**
+ * 播放跟随滚动：把播放头所在列滚入可视区域（仅在乐谱超出一屏、出现滚动条时生效）
+ *
+ * - 播放头行在可视区上方（长乐谱循环回卷 / 跳转回开头）→ 该行顶部对齐到容器顶部
+ * - 播放头行贴到或超出底部 → 向下翻行，并额外露出 LOOKAHEAD 行，避免总在底边阅读
+ * - 整份乐谱一屏放得下（无滚动条）→ 不改动滚动位置
+ * - 向下翻行用平滑滚动；向上/回卷即时跳转，避免长距离平滑动画拖尾
+ */
+function scrollPlayheadIntoView(col: number) {
+  const box = scrollBoxEl
+  const grid = gridRef.value
+
+  if (!box || !grid || col < 0) {
+    return
+  }
+  // 内容未超出容器：没有滚动条，无需定位
+  if (box.scrollHeight <= box.clientHeight + 1) {
+    return
+  }
+
+  const el = grid.children[col] as HTMLElement | undefined
+  if (!el) {
+    return
+  }
+
+  // 用 rect 差值换算位置，避免依赖 offsetParent（.board-scroll 为 static 定位）
+  const boxRect = box.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const rowTop = elRect.top - boxRect.top + box.scrollTop
+  const rowBottom = elRect.bottom - boxRect.top + box.scrollTop
+
+  const viewBottom = box.scrollTop + box.clientHeight
+  const stride = el.offsetHeight + ROW_GAP_PX
+
+  let target: number | null = null
+  if (rowTop < box.scrollTop) {
+    target = rowTop
+  } else if (rowBottom + PLAY_SCROLL_LOOKAHEAD_ROWS * stride > viewBottom) {
+    target = rowBottom + PLAY_SCROLL_LOOKAHEAD_ROWS * stride - box.clientHeight
+  }
+  if (target === null) {
+    return
+  }
+
+  const clamped = Math.max(0, Math.min(target, box.scrollHeight - box.clientHeight))
+  if (Math.abs(clamped - box.scrollTop) < 1) {
+    return
+  }
+
+  box.scrollTo({ top: clamped, behavior: clamped < box.scrollTop ? 'auto' : 'smooth' })
 }
 
 /** 前进到下一格（向右，同声部）；越过数据末尾时由 moveCursor 自动扩展乐谱 */
@@ -697,12 +751,25 @@ function onDocumentKeyup(e: KeyboardEvent) {
 }
 
 // 开始播放时立即停止长按重复并清除待决修饰符，防止播放期间继续写入
+// 同时把播放头滚入视野：从暂停点续播 / 长乐谱 seek 后播放也能立刻看到当前列
 watch(isPlaying, (playing) => {
   if (playing) {
     clearNoteRepeat()
     clearPending()
+    nextTick(() => scrollPlayheadIntoView(props.currentPlayColumn ?? 0))
   }
 })
+
+// 播放头推进时跟随滚动：仅在列真正越出可视区时才改动 scrollTop，行内推进为空操作
+watch(
+  () => props.currentPlayColumn,
+  (col) => {
+    if (!isPlaying.value || col == null) {
+      return
+    }
+    scrollPlayheadIntoView(col)
+  },
+)
 
 onMounted(() => {
   focusCell(0, 0)

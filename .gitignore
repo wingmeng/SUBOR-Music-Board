@@ -27,3 +27,6 @@ pnpm-lock.yaml
 
 # Screenshots / verification captures (local dev artifacts, not tracked)
 screenshot/
+wiki/
+history-docs/
+demos/

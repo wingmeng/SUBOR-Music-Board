@@ -3,6 +3,8 @@
 [中文](./README.md)
 
 > A Vue 3 + TypeScript + Vite based, FC / 8-bit style three-voice numbered-notation music composition tool. All audio is synthesized in the browser in real time — no audio asset files required.
+>
+> **Try it online**: [https://wingmeng.com/SUBOR-Music-Board/](https://wingmeng.com/SUBOR-Music-Board/)
 
 ---
 
@@ -26,7 +28,6 @@ SUBOR Music Board is a browser-based, retro-style music creation app. It uses nu
 
 Typical use cases:
 
-- Music education and numbered-notation introduction
 - Game / retro (FC, 8-bit) style BGM composition
 - Quick sketches and prototypes of electronic music
 
@@ -36,7 +37,7 @@ Typical use cases:
 
 - Three-voice numbered-notation editing (lead / chord / bass, square / square / triangle waves), each column mapping to one beat.
 - Real-time, code-only audio synthesis via Web Audio API (no third-party audio libs).
-- A responsive grid editor with direct keyboard input that auto-wraps; scores longer than the visible area automatically grow into new rows and are browsable via a scrollbar.
+- A responsive notation grid with direct keyboard input: the board initially fills the visible area without a scrollbar; once the score outgrows the current rows, new rows are generated automatically and browsed via a scrollbar.
 - Playback controls with play / pause / stop and loop, plus live tempo and key changes during playback.
 - Six preset tempo steps and five selectable major keys.
 - Import / export in the `.subor.json` format for sharing and reuse.
@@ -102,7 +103,7 @@ This project follows "convention over configuration" and needs no extra config f
 
 ### Layout
 
-- Left panel — OPEN / SAVE / CLEAR for import, export, and clear (disabled only while playing; available when paused or stopped).
+- Left panel — OPEN / SAVE / SONGS / CLEAR for import, export, the built-in song library, and clearing the score (disabled only while playing; available when paused or stopped).
 - Center — the three-voice notation grid; the active cursor cell is highlighted and playback progress is shown.
 - Bottom control bar — key signature, tempo (`SLOW` / `FAST` stepper), and playback controls (`PLAY` / `PAUSE` / `STOP` / `LOOP`).
 - Top-right `?` opens the help dialog.
@@ -195,6 +196,12 @@ Exported files are JSON with the following structure:
 
 `score` is an array of columns; each column is a `[lead, chord, bass]` triple of notation strings. On import, fields and value ranges are validated, and invalid files trigger an error message.
 
+### Companion Skill
+
+[SUBOR-music-generator-skill](https://github.com/wingmeng/SUBOR-music-generator-skill)
+
+A cross-platform Agent skill that generates SUBOR Music Board–compatible FC / 8-bit three-voice numbered-notation music JSON (`.subor.json`) from emotion keywords, and can also transcribe well-known tunes (pop songs, folk songs, classical pieces, nursery rhymes, etc.) into the exact same SUBOR format.
+
 ---
 
 ## Testing & Build
@@ -221,11 +228,28 @@ No automated test framework is configured yet (no `vitest` / `jest`). It is reco
 
 ## Contributing
 
+Branch overview:
+
+| Branch | Role | Description |
+|--------|------|-------------|
+| `main` | Release branch | Stable, shippable releases corresponding to the production build. |
+| `develop` | Development trunk | Day-to-day integration branch; new features land here first. |
+| `gh-pages` | Deployment branch | Static build output for GitHub Pages, served at the [online demo](https://wingmeng.com/SUBOR-Music-Board/) URL. |
+
+Besides code, `develop` also maintains the following non-code content:
+
+- `AGENTS.md`: repository conventions for AI agents and collaborators.
+- `docs/`: development history and decision records (an Agent-oriented memory bank).
+- `wiki/`: architecture and reference documentation.
+- `demos/`: early demos illustrating individual technical points.
+
+> Target `develop` for day-to-day work; `main` is for releases only; `gh-pages` is pushed automatically from the build output — do not edit it manually.
+
 Contributions are welcome! Suggested workflow:
 
-1. Fork the repo and branch from the main branch.
+1. Fork the repo and create a feature branch from `develop`.
 2. Follow the existing style: Vue 3 `<script setup>` + strict TypeScript.
-3. For changes to notation, voices, tempo/key contracts, update `types.ts` and related mappings, and document in `wiki/` and `history-docs/`.
+3. For changes to core contracts (notation syntax, voices, tempo / key), update `src/core/types.ts` and related mappings, and record them in `wiki/`.
 4. Use Conventional Commits (e.g. `feat:`, `fix:`, `docs:`).
 5. Open a PR describing the motivation and how it was verified.
 

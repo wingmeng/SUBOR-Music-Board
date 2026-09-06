@@ -29,7 +29,7 @@ SUBOR Music Board（小霸王音乐板）是基于 **Vue 3 + TypeScript + Vite**
 - Vue 3 `<script setup>` 组合式 API + TypeScript（严格模式）。
 - 架构分层（见下）：`components` → `composables` → `core`，通过 `types.ts` 保持契约稳定，音频后端可替换 / 扩展。
 - 提交信息采用 Conventional Commits（`feat:` / `fix:` / `docs:` 等）。
-- 涉及记谱语法、声部、速度 / 调号等**核心契约**的修改，必须同步更新 `src/core/types.ts` 与相关映射，并在 `wiki/`、`history-docs/` 补充记录。
+- 涉及记谱语法、声部、速度 / 调号等**核心契约**的修改，必须同步更新 `src/core/types.ts` 与相关映射，并在 `wiki/`、`docs/` 补充记录。
 - 严格保留原始字符顺序，禁止自动添加空格、下划线、填充或对齐。
 
 ## 重要不变量与陷阱
@@ -39,8 +39,8 @@ SUBOR Music Board（小霸王音乐板）是基于 **Vue 3 + TypeScript + Vite**
 - **播放过程中禁用网格编辑**。
 - 修饰符 `#` `b` `,` `.` 须先输入、再输入数字才生效；可重复输入，后者覆盖前者。
 - 调号仅 `C / D / F / G / ♭B` 五个大调：`types.ts` 的 `KEY_SIGNATURES` 与 `note-map.ts` 的 `KEY_NOTE_MAP` 必须保持一致。修改调号相关代码或文案前请先核对 `types.ts`。
-- 实时变速 / 变调在播放中可用，由 `sequencer` 的 `requestPlaybackRestart()` 实现：立即 `stopAll()` 丢弃所有声，120ms 防抖后从当前指示器列整体重排（详见 `history-docs/播放中实时调号变速改为丢弃重排.md`）。`music-engine.ts` 的 `stopFrom` 已无调用方，仅作保留工具。
-- **撤销 / 重做（2026-08-31 新增）**：所有内容修改入口（`setNote` / `clearNote` / `insertNoteAt` / `backspaceAt` / `resetScore` / `loadScore`）在修改前记录快照（深拷贝 score + 光标，栈深 100）；`moveCursor` 纯列扩展与 `syncColumns` 列对齐**不进历史**。快捷键 `Ctrl/Cmd+Z`（撤销）、`Ctrl/Cmd+Shift+Z` / `Ctrl/Cmd+Y`（重做）在 `App.vue` 的 `onGlobalKeydown` 处理，播放中与对话框打开时禁用。改动撤销相关代码请核对 `useNotation.ts` 与 `NotationGrid.vue` 的 `cancelPendingInput`（详见 `history-docs/撤销重做功能实现规范.md`）。
+- 实时变速 / 变调在播放中可用，由 `sequencer` 的 `requestPlaybackRestart()` 实现：立即 `stopAll()` 丢弃所有声，120ms 防抖后从当前指示器列整体重排（详见 `docs/播放中实时调号变速改为丢弃重排.md`）。`music-engine.ts` 的 `stopFrom` 已无调用方，仅作保留工具。
+- **撤销 / 重做（2026-08-31 新增）**：所有内容修改入口（`setNote` / `clearNote` / `insertNoteAt` / `backspaceAt` / `resetScore` / `loadScore`）在修改前记录快照（深拷贝 score + 光标，栈深 100）；`moveCursor` 纯列扩展与 `syncColumns` 列对齐**不进历史**。快捷键 `Ctrl/Cmd+Z`（撤销）、`Ctrl/Cmd+Shift+Z` / `Ctrl/Cmd+Y`（重做）在 `App.vue` 的 `onGlobalKeydown` 处理，播放中与对话框打开时禁用。改动撤销相关代码请核对 `useNotation.ts` 与 `NotationGrid.vue` 的 `cancelPendingInput`（详见 `docs/撤销重做功能实现规范.md`）。
 
 ## 项目目录结构
 
@@ -71,7 +71,7 @@ SUBOR-Music-Board/
 ├── public/                  # 公共静态资源（favicon 等）
 ├── demos/                   # 示例 / 演示页面
 ├── wiki/                    # 自动生成的架构与参考文档
-├── history-docs/            # 开发历史与决策记录
+├── docs/                   # 开发历史与决策记录（Agent 记忆库）
 ├── index.html
 ├── package.json
 ├── vite.config.ts
@@ -86,5 +86,5 @@ SUBOR-Music-Board/
 
 - 用户文档：[README.md](./README.md)（中文）/ [README_EN.md](./README_EN.md)（英文）
 - 架构与参考：`wiki/`
-- 开发历史与决策：`history-docs/`
+- 开发历史与决策：`docs/`（Agent 记忆库）
 - 本文件：`AGENTS.md`（代理与协作者约定）

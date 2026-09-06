@@ -2,6 +2,7 @@
   "version": "1.0",
   "title": "生日快乐歌",
   "description": "经典生日歌曲《Happy Birthday to You》转写（公有领域），C大调4/4拍，105BPM；原曲为 3/4 拍弱起，此处按常见的 4/4 简化记谱",
+  "bpm": 105,
   "keySignature": "C",
   "score": [
     ["5", "3", ",1"],

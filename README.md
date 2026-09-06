@@ -3,6 +3,8 @@
 [English](./README_EN.md)
 
 > 基于 **Vue 3 + TypeScript + Vite** 的 FC / 8-bit 风格三声部简谱音乐创作工具，浏览器端实时合成，无需任何音频素材。
+>
+> **在线体验**：[https://wingmeng.com/SUBOR-Music-Board/](https://wingmeng.com/SUBOR-Music-Board/)
 
 ---
 
@@ -26,7 +28,6 @@ SUBOR Music Board（小霸王音乐板）是一款运行在浏览器端的复古
 
 主要适用场景：
 
-- 音乐教育与简谱入门
 - 游戏 / 复古（FC、8-bit）风格 BGM 创作
 - 电子音乐片段与原型快速创作
 
@@ -40,7 +41,7 @@ SUBOR Music Board（小霸王音乐板）是一款运行在浏览器端的复古
 - **播放控制**：播放 / 暂停 / 停止，支持循环（`LOOP`）；播放中可实时变速、变调。
 - **可调速度（BPM）与调号**：6 档预设速度、5 个可调大调调号。
 - **导入 / 导出**：以 `.subor.json` 格式保存与加载乐谱，便于分享与复用。
-- **内置预设曲目**：铃儿响叮当、小星星、墓园舞曲等。
+- **内置预设曲目**：小星星、两只老虎、欢乐颂、生日快乐歌、铃儿响叮当、永远同在（千与千寻）、黑人抬棺。
 - **FC 复古视觉**：NES.css 主题 + Press Start 2P 像素字体，并带有羽毛笔书写等装饰动效。
 
 ---
@@ -62,9 +63,9 @@ SUBOR Music Board（小霸王音乐板）是一款运行在浏览器端的复古
 ### 环境要求
 
 - **Node.js 20 或更高版本**（LTS 推荐）
-- 包管理器：**pnpm**（推荐，仓库已包含 `pnpm-lock.yaml`）；`npm` / `yarn` 亦可
+- 包管理器：**pnpm**（推荐）；`npm` / `yarn` 亦可
 
-### 安装步骤
+### 源码安装步骤
 
 ```bash
 # 1. 克隆仓库
@@ -102,7 +103,7 @@ pnpm dev
 
 ### 界面布局
 
-- **左侧 OPEN / SAVE / CLEAR**：导入、导出、清空乐谱（仅播放中禁用，暂停或停止状态下均可用）。
+- **左侧 OPEN / SAVE / SONGS / CLEAR**：导入、导出、内置曲库、清空乐谱（仅播放中禁用，暂停或停止状态下均可用）。
 - **中央网格**：三声部记谱区，当前光标格高亮，播放时显示进度。
 - **底部控制栏**：调号、速度（`SLOW` / `FAST` 步进）、播放控制（`PLAY` / `PAUSE` / `STOP` / `LOOP`）。
 - **右上角 `?`**：打开使用帮助。
@@ -154,15 +155,19 @@ pnpm dev
   | 4 | 120 | 0.250s | 快板 |
   | 5 | 135 | 0.222s | 最快 |
 
-- **调号**：`C` / `D` / `F` / `G` / `A` 五个大调（界面以 `1=C` 形式显示主音），默认 `C` 大调。
+- **调号**：`C` / `D` / `F` / `G` / `♭B` 五个大调（界面以 `1=C` 形式显示主音），默认 `C` 大调。
 
 ### 示例：导入预设曲目
 
 仓库 `presets/` 目录包含示例乐谱：
 
+- `always-with-me.subor.json` — 永远同在（千与千寻）(Always with Me)
+- `coffin-dance.subor.json` — 黑人抬棺 (Coffin Dance)
+- `happy-birthday.subor.json` — 生日快乐歌 (Happy Birthday to You)
 - `jingle-bell.subor.json` — 铃儿响叮当 (Jingle Bells)
+- `ode-to-joy.subor.json` — 欢乐颂 (Ode to Joy)
 - `twinkle-star.subor.json` — 小星星 (Twinkle Twinkle Little Star)
-- `coffin-dance.subor.json` — 墓园舞曲 (Coffin Dance)
+- `two-tigers.subor.json` — 两只老虎 (Frère Jacques)
 
 操作步骤：
 
@@ -192,6 +197,12 @@ pnpm dev
 - `score` 为列数组，每列是 `[主旋律, 和弦律, 低频]` 三个声部的记谱字符串。
 - 导入时会校验字段与取值范围，不合法文件会提示错误。
 
+### 配套 Skills
+
+[SUBOR-music-generator-skill](https://github.com/wingmeng/SUBOR-music-generator-skill)
+
+一个通用（跨平台）Agent 技能：根据用户给出的情感关键词，生成 SUBOR Music Board 兼容的 FC / 8-bit 三声部简谱音乐 JSON（.subor.json）； 并支持将耳熟能详的经典乐曲（流行歌曲、民谣、古典名曲、儿歌等）按完全相同的格式转写为 SUBOR 格式。
+
 ---
 
 ## 测试与构建说明
@@ -214,10 +225,27 @@ pnpm preview   # 本地预览生产构建产物
 
 ## 贡献指南
 
+代码分支说明：
+
+| 分支 | 定位 | 说明 |
+|------|------|------|
+| `main` | 发布分支 | 稳定可用的发布版本，对应线上正式构建。 |
+| `develop` | 开发主干 | 日常开发集成分支，最新特性先合入此处。 |
+| `gh-pages` | 部署分支 | GitHub Pages 静态构建产物，对应[在线体验](https://wingmeng.com/SUBOR-Music-Board/)地址。 |
+
+`develop` 上除代码外，也一并维护以下非代码内容：
+
+- `AGENTS.md`：面向 AI 代理与协作者的仓库约定。
+- `docs/`：开发历史与决策记录（面向 Agent 的记忆库）。
+- `wiki/`：架构与参考文档。
+- `demos/`：初期一些技术点示例 / 原理演示页面。
+
+> 日常开发请以 `develop` 为合入目标，`main` 仅用于发布；`gh-pages` 由构建产物自动推送，不要手动修改。
+
 欢迎参与项目改进！建议流程：
 
-1. Fork 本仓库并基于主分支创建特性分支。
+1. Fork 本仓库并基于 `develop` 分支创建特性分支。
 2. 遵循现有代码风格：Vue 3 `<script setup>` + TypeScript（开启严格类型）。
-3. 涉及记谱语法、声部、速度 / 调号等核心契约的修改，请同步更新 `src/core/types.ts` 与相关映射，并在 `wiki/`、`history-docs/` 补充记录。
+3. 涉及记谱语法、声部、速度 / 调号等核心契约的修改，请同步更新 `src/core/types.ts` 与相关映射，并在 `wiki/` 补充记录。
 4. 提交信息建议采用 Conventional Commits 规范（如 `feat:`、`fix:`、`docs:`）。
 5. 提交 Pull Request，并描述改动动机与验证方式。

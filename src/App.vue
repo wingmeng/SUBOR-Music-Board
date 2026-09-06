@@ -6,6 +6,7 @@ import ControlBar from './components/ControlBar.vue'
 import ExportDialog from './components/ExportDialog.vue'
 import ClearDialog from './components/ClearDialog.vue'
 import HelpDialog from './components/HelpDialog.vue'
+import PresetDialog from './components/PresetDialog.vue'
 import Quill from './components/Quill.vue'
 import InkBottle from './components/InkBottle.vue'
 import { useNotation } from './composables/useNotation'
@@ -14,7 +15,8 @@ import { useImportExport } from './composables/useImportExport'
 import { useQuill } from './composables/useQuill'
 import type { QuillAPI } from './composables/useQuill'
 import { DEFAULT_BPM, DEFAULT_KEY_SIGNATURE } from './core/types'
-import type { VoiceIndex, Score } from './core/types'
+import type { VoiceIndex, Score, Column } from './core/types'
+import type { PresetSong } from './core/presets'
 
 const {
   score,
@@ -73,6 +75,7 @@ const { exportScore, importScore } = useImportExport({
 const showExportDialog = ref(false)
 const showClearDialog = ref(false)
 const showHelpDialog = ref(false)
+const showPresetDialog = ref(false)
 
 const quill = useQuill()
 provide<QuillAPI>('quill', quill)
@@ -132,6 +135,28 @@ function handleImport() {
   importScore()
 }
 
+/** 打开内置曲库弹窗 */
+function handleOpenPresets() {
+  showPresetDialog.value = true
+}
+
+/**
+ * 载入内置乐谱：与导入文件同一套收尾流程（设速度/调号 → 载入 → 对齐列数 → 光标归位）。
+ * loadScore 已进入撤销栈，因此载入后可 Ctrl+Z 撤回，无需二次确认。
+ */
+function handleLoadPreset(song: PresetSong) {
+  stop()
+  config.speed = song.bpm
+  config.keySignature = song.keySignature
+  // 复制一层：曲库可重复载入，避免编辑污染模块级 PRESET_LIST
+  loadScore(song.score.map((col) => [...col] as Column))
+  const cols = notationGridRef.value?.visibleColumns
+  if (cols != null) {
+    syncColumns(cols)
+  }
+  nextTick(() => notationGridRef.value?.focusHome())
+}
+
 function handleClear() {
   showClearDialog.value = true
 }
@@ -188,7 +213,11 @@ function openHelp() {
 
 /** 任意弹框打开时，挂起全局快捷键，避免弹框叠加 */
 const anyDialogOpen = computed(
-  () => showExportDialog.value || showClearDialog.value || showHelpDialog.value,
+  () =>
+    showExportDialog.value ||
+    showClearDialog.value ||
+    showHelpDialog.value ||
+    showPresetDialog.value,
 )
 
 /** 全局快捷键：P 播放/暂停切换，Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y 重做，
@@ -259,6 +288,15 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
         </button>
         <button
           type="button"
+          class="nes-btn is-small"
+          :class="{'is-disabled': isPlaying}"
+          :disabled="isPlaying"
+          @click="handleOpenPresets"
+        >
+          SONGS
+        </button>
+        <button
+          type="button"
           class="nes-btn is-small is-error"
           :class="{'is-disabled': isPlaying}"
           :disabled="isPlaying"
@@ -311,6 +349,11 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
         <HelpDialog
           :visible="showHelpDialog"
           @close="showHelpDialog = false"
+        />
+        <PresetDialog
+          :visible="showPresetDialog"
+          @close="showPresetDialog = false"
+          @select="handleLoadPreset"
         />
       </template>
       <template #overlay>

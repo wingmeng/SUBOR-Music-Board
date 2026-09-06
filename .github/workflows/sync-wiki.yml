@@ -1,0 +1,60 @@
+name: Sync Wiki
+
+# 把主仓库的 wiki/ 文件夹自动镜像到 GitHub Wiki 仓库(*.wiki.git)。
+# 单一真相源 = 主仓库 SUBOR-Music-Board/wiki/，Wiki 网页只是发布产物。
+# 触发条件：推送到 develop 分支且改动涉及 wiki/（或本 workflow 文件本身）；也可手动触发。
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'wiki/**'
+      - '.github/workflows/sync-wiki.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 主仓库
+        uses: actions/checkout@v4
+
+      - name: 配置 git 身份
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 镜像 wiki/ 到 Wiki 仓库
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WIKI_REPO="wingmeng/SUBOR-Music-Board.wiki"
+          WIKI_URL="https://x-access-token:${WIKI_TOKEN}@github.com/${WIKI_REPO}.git"
+
+          # 克隆 Wiki 仓库（默认分支 master）
+          git clone --depth 1 "$WIKI_URL" /tmp/wiki
+
+          # 把主仓库 wiki/ 真镜像进 Wiki 仓库根目录：
+          #   -a        保持目录结构与文件属性
+          #   --delete   删除 Wiki 仓库里源已移除的文件（保持一致）
+          #   排除 .git / Home.md / _Sidebar.md / _Footer.md（这些只在 Wiki 侧维护）
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='Home.md' \
+            --exclude='_Sidebar.md' \
+            --exclude='_Footer.md' \
+            ./wiki/ /tmp/wiki/
+
+          cd /tmp/wiki
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✓ Wiki 已是最新，无变更"
+          else
+            git add -A
+            git commit -m "docs(wiki): auto-sync from SUBOR-Music-Board@${GITHUB_SHA::8}"
+            git push
+            echo "✓ 已推送 Wiki 更新"
+          fi

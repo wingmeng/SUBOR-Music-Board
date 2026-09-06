@@ -41,4 +41,4 @@ useImportExport({
 ## 备注
 
 - 预设文件（`presets/*.json`）中的 BPM 值各不相同（90/105/120 等），并非全部经由此缺陷路径生成，无需回改。
-- `presets/生日快乐歌.subor.json` 缺少 `bpm` 字段，属旧格式，导入时由 `validateData` 兜底为默认值，不在本次修复范围。
+- `presets/happy-birthday.subor.json` 缺少 `bpm` 字段，属旧格式，导入时由 `validateData` 兜底为默认值，不在本次修复范围。

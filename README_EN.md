@@ -40,7 +40,7 @@ Typical use cases:
 - Playback controls with play / pause / stop and loop, plus live tempo and key changes during playback.
 - Six preset tempo steps and five selectable major keys.
 - Import / export in the `.subor.json` format for sharing and reuse.
-- Built-in preset songs (Jingle Bells, Twinkle Twinkle Little Star, Coffin Dance).
+- Built-in preset songs: Twinkle Twinkle Little Star, Two Tigers, Ode to Joy, Happy Birthday to You, Jingle Bells, Always with Me (Spirited Away), Coffin Dance.
 - FC-retro visuals via NES.css and the Press Start 2P pixel font, with quill-writing decorative animations.
 
 ---
@@ -154,15 +154,19 @@ Combination examples: `#.1` (high sharp do), `b,3` (low flat mi).
   | 4 | 120 | 0.250s | Allegro |
   | 5 | 135 | 0.222s | Fastest |
 
-- **Key**: Five major keys — `C` / `D` / `F` / `G` / `A` (shown as `1=C` etc., meaning the tonic); default is `C` major.
+- **Key**: Five major keys — `C` / `D` / `F` / `G` / `♭B` (shown as `1=C` etc., meaning the tonic); default is `C` major.
 
 ### Example: Import a Preset
 
 The `presets/` directory ships with sample scores:
 
-- `jingle-bell.subor.json` — Jingle Bells
-- `twinkle-star.subor.json` — Twinkle Twinkle Little Star
+- `always-with-me.subor.json` — Always with Me (Spirited Away)
 - `coffin-dance.subor.json` — Coffin Dance
+- `happy-birthday.subor.json` — Happy Birthday to You
+- `jingle-bell.subor.json` — Jingle Bells
+- `ode-to-joy.subor.json` — Ode to Joy
+- `twinkle-star.subor.json` — Twinkle Twinkle Little Star
+- `two-tigers.subor.json` — Two Tigers (Frère Jacques)
 
 Steps:
 

@@ -40,7 +40,7 @@ SUBOR Music Board（小霸王音乐板）是一款运行在浏览器端的复古
 - **播放控制**：播放 / 暂停 / 停止，支持循环（`LOOP`）；播放中可实时变速、变调。
 - **可调速度（BPM）与调号**：6 档预设速度、5 个可调大调调号。
 - **导入 / 导出**：以 `.subor.json` 格式保存与加载乐谱，便于分享与复用。
-- **内置预设曲目**：铃儿响叮当、小星星、墓园舞曲等。
+- **内置预设曲目**：小星星、两只老虎、欢乐颂、生日快乐歌、铃儿响叮当、永远同在（千与千寻）、黑人抬棺。
 - **FC 复古视觉**：NES.css 主题 + Press Start 2P 像素字体，并带有羽毛笔书写等装饰动效。
 
 ---
@@ -154,15 +154,19 @@ pnpm dev
   | 4 | 120 | 0.250s | 快板 |
   | 5 | 135 | 0.222s | 最快 |
 
-- **调号**：`C` / `D` / `F` / `G` / `A` 五个大调（界面以 `1=C` 形式显示主音），默认 `C` 大调。
+- **调号**：`C` / `D` / `F` / `G` / `♭B` 五个大调（界面以 `1=C` 形式显示主音），默认 `C` 大调。
 
 ### 示例：导入预设曲目
 
 仓库 `presets/` 目录包含示例乐谱：
 
+- `always-with-me.subor.json` — 永远同在（千与千寻）(Always with Me)
+- `coffin-dance.subor.json` — 黑人抬棺 (Coffin Dance)
+- `happy-birthday.subor.json` — 生日快乐歌 (Happy Birthday to You)
 - `jingle-bell.subor.json` — 铃儿响叮当 (Jingle Bells)
+- `ode-to-joy.subor.json` — 欢乐颂 (Ode to Joy)
 - `twinkle-star.subor.json` — 小星星 (Twinkle Twinkle Little Star)
-- `coffin-dance.subor.json` — 墓园舞曲 (Coffin Dance)
+- `two-tigers.subor.json` — 两只老虎 (Frère Jacques)
 
 操作步骤：
 
